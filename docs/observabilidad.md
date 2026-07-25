@@ -31,8 +31,12 @@ para completar el diagrama final.
   temporal se realiza mediante `kubectl port-forward`.
 - No existe ingreso norte-sur hasta desplegar Envoy Gateway, ZITADEL, OpenFGA y
   ReefOps Authorizer.
-- Grafana es de solo lectura para el acceso operativo inicial. Dashboards,
-  fuentes de datos y alertas se cambian mediante GitOps, no desde la interfaz.
+- Grafana es de solo lectura para el acceso operativo inicial, no crea una
+  cuenta administradora y no recibe permisos sobre la API Kubernetes.
+  Dashboards, fuentes de datos y alertas se cambian mediante GitOps, no desde
+  la interfaz. Kubernetes atribuye quién abrió el `port-forward`, pero esta
+  fase no atribuye cada lectura HTTP dentro de esa sesión; no se usará para
+  información sensible.
 - La retención inicial de métricas es de siete días, con límite adicional por
   tamaño para proteger el disco local.
 - Se usa una sola réplica por componente. Ejecutar réplicas adicionales en un
@@ -50,7 +54,9 @@ La capa debe permitir consultar como mínimo:
 - estado de pods, deployments, statefulsets, daemonsets, jobs y PVC;
 - reconciliaciones de Flux;
 - disponibilidad y caducidad de certificados;
-- estado sellado y disponibilidad de OpenBao sin exponer secretos;
+- estado operativo de OpenBao mediante su readiness; un OpenBao sellado deja de
+  estar preparado, aunque esta primera señal no distingue el sellado de otras
+  causas de indisponibilidad;
 - disponibilidad y sincronización de External Secrets Operator;
 - consumo de CPU, memoria y almacenamiento de la propia observabilidad.
 
@@ -69,7 +75,9 @@ Las primeras alarmas ReefOps cubrirán:
 
 La fase se considera operativa únicamente cuando:
 
-1. Flux reconcilia una revisión completa y fija de `reefops-platform`;
+1. Flux reconcilia exactamente el mismo commit completo de
+   `reefops-platform` validado localmente; cualquier diferencia aborta antes de
+   crear la señal sintética;
 2. todos los pods esperados están preparados y sujetos a límites de recursos;
 3. Prometheus descubre el nodo, Kubernetes y los componentes de plataforma
    acordados;
@@ -80,9 +88,17 @@ La fase se considera operativa únicamente cuando:
    datos dentro de las garantías declaradas;
 8. las interfaces no son accesibles desde fuera del clúster salvo mediante un
    túnel operativo autenticado por Kubernetes;
-9. la prueba guarda revisión local y Flux, UIDs, tiempos, resultado y
-   `correlation_id`, sin valores secretos;
+9. la prueba guarda `environment_id`, `operation_id`, `correlation_id`,
+   `causation_id`, actor, autenticación/autorización, revisión local y Flux,
+   digest de chart e imágenes, hash del manifiesto, UIDs, tiempos, fase,
+   restauración y resultado, sin valores secretos;
 10. `task validate` pasa en producto, plataforma y composición GitOps.
+
+La evidencia se guarda como JSONL local con encadenamiento SHA-256 entre
+registros y permisos solo para el operador. Se conserva al menos un año y se
+incluye en el backup operativo cifrado; no se almacena dentro de Prometheus ni
+se elimina al rotar métricas. Una rotura de la cadena o una restauración
+incompleta impide declarar exitosa la aceptación.
 
 ## 5. Evolución
 
