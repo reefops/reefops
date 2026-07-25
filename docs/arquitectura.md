@@ -685,10 +685,18 @@ espaciales. Las series temporales comenzarán en PostgreSQL particionado. Solo s
 añadirá una extensión o base especializada si el volumen real de sensores lo
 justifica.
 
-Los módulos del Core podrán compartir una instancia física, pero tendrán
-propiedad lógica separada. Una migración pertenecerá a un único módulo. Las
-necesidades de lectura cruzada se resolverán mediante proyecciones alimentadas
-por eventos, nunca mediante consultas o joins entre dominios.
+Los módulos del Core podrán compartir un clúster físico, pero cada dominio
+tendrá base, owner, rol de migración y rol runtime propios. No existirán grants,
+vistas, funciones, claves foráneas ni joins entre bases de dominios. Una
+migración pertenecerá a un único módulo. Las necesidades de lectura cruzada se
+resolverán mediante proyecciones alimentadas por eventos, nunca mediante
+consultas a datos ajenos.
+
+Development usará CloudNativePG con una sola instancia PostgreSQL: otra réplica
+sobre el mismo Mac no se presentará como HA. Backup físico y WAL se gestionarán
+mediante el plugin CNPG-I Barman Cloud hacia SeaweedFS y se exportarán cifrados
+fuera de la VM. El contrato está en
+[PostgreSQL y CloudNativePG](postgresql.md).
 
 ### 4.4 Almacenamiento de objetos
 
@@ -1578,8 +1586,9 @@ con hechos: podrán rechazarse y tendrán destinatario explícito.
 
 ### 15.5 Propiedad de datos
 
-Aunque varios dominios utilicen la misma instancia PostgreSQL:
+Aunque varios dominios utilicen el mismo clúster PostgreSQL:
 
+- cada dominio tendrá una base de datos distinta;
 - cada tabla tendrá un módulo propietario;
 - solo el propietario realizará escrituras;
 - no existirán claves foráneas entre dominios;
@@ -1594,8 +1603,8 @@ sin cambiar el contrato funcional.
 
 Cada dominio tendrá:
 
-- esquema o base lógica propia;
-- usuario de base de datos propio;
+- base de datos propia;
+- owner, usuario de migración y usuario runtime propios;
 - permisos únicamente sobre sus objetos;
 - migraciones propias;
 - repositorios propios;
@@ -2420,7 +2429,6 @@ podrán transportar texto o eventos ya minimizados y autorizados.
 - ConnectRPC frente a gRPC puro para servicios técnicos de inferencia y medios.
 - Atlas frente a Goose para migraciones.
 - Alcance inicial de TimescaleDB frente a particionado nativo.
-- Estrategia de esquemas y roles PostgreSQL por módulo.
 - Destino físico externo para backups del Mac mini.
 - Dominio DNS local y autoridad certificadora para desarrollo.
 - Instalación de Linkerd mediante init container o CNI.
