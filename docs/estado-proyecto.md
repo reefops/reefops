@@ -190,7 +190,10 @@ proteja vida animal. En ese perfil, un RPO de 24 horas puede ser insuficiente.
 La siguiente etapa stateful puede comenzar manteniendo registrada la tercera
 fase de custodia como riesgo residual:
 
-1. desplegar la observabilidad mínima de operadores;
+1. desplegar la
+   [observabilidad mínima de development](observabilidad.md), comenzando por
+   métricas, alertas y dashboards; logs y trazas se añadirán cuando tengan
+   consumidores y almacenamiento definidos;
 2. desplegar SeaweedFS y ejecutar el contrato S3 de ReefOps;
 3. decidir y desplegar PostgreSQL mediante CloudNativePG con backup y
    restauración;

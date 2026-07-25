@@ -12,6 +12,7 @@ salada y salobre.
 - [Entorno de desarrollo](docs/entorno-desarrollo.md)
 - [Plataforma GitHub](docs/plataforma-github.md)
 - [Gestión de secretos](docs/gestion-secretos.md)
+- [Observabilidad mínima](docs/observabilidad.md)
 - [Entrega ESO con OpenBao](docs/runbooks/eso-openbao.md)
 - [Recuperación de OpenBao](docs/runbooks/openbao-recuperacion.md)
 - [Estado actual y siguiente etapa](docs/estado-proyecto.md)

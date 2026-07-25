@@ -1317,6 +1317,14 @@ La telemetría técnica tendrá muestreo y retención propios, pero nunca será 
 único registro de una decisión funcional. Logs, métricas y trazas enlazarán con
 `correlation_id` cuando exista.
 
+El despliegue será incremental. La puerta inicial de plataforma instalará
+Prometheus Operator, Prometheus, Alertmanager, Grafana, `kube-state-metrics` y
+el exportador del nodo antes de los servicios stateful. Loki se incorporará
+después de fijar almacenamiento, retención y redacción de logs. OpenTelemetry
+Collector y Tempo precederán al primer servicio que emita trazas, pero no se
+desplegarán sin consumidores. El alcance y la aceptación de la primera puerta
+se definen en [observabilidad mínima](observabilidad.md).
+
 ## 13. Disponibilidad y degradación
 
 | Dependencia no disponible | Comportamiento esperado |
@@ -2458,11 +2466,11 @@ Flux aplicará capas explícitamente dependientes:
 
 1. fuentes y configuración de Flux;
 2. namespaces, quotas y políticas base;
-3. Gateway API y `cert-manager`;
-4. Envoy Gateway y Linkerd;
-5. observabilidad;
-6. almacenamiento y servicios de datos;
-7. NATS;
+3. Gateway API, `cert-manager`, OpenBao y entrega de secretos;
+4. observabilidad mínima interna;
+5. almacenamiento y servicios de datos;
+6. NATS;
+7. Envoy Gateway y Linkerd;
 8. ZITADEL, OpenFGA y ReefOps Authorizer;
 9. aplicaciones ReefOps.
 
