@@ -247,5 +247,12 @@ como riesgo residual:
 Loki y Tempo siguen diferidos hasta disponer de almacenamiento y consumidores
 reales; no bloquean el siguiente gate stateful.
 
+El gate SeaweedFS ya tiene contrato documentado en
+[Almacenamiento de objetos](almacenamiento-objetos.md). Para cerrarlo todavía
+faltan el mirror OCI verificado, la credencial custodiada en OpenBao, la
+reconciliación GitOps, la prueba S3/persistencia y un backup cifrado restaurado
+en un bucket aislado. Hasta completar esas cinco condiciones SeaweedFS sigue
+figurando como no desplegado.
+
 El primer corte funcional incluirá autorización, persistencia, auditoría,
 outbox, evento versionado y trazas. No será un CRUD aislado de esas garantías.

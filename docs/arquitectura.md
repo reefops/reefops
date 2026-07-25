@@ -734,6 +734,14 @@ alta disponibilidad. Sus volúmenes no constituyen un backup y deberán incluirs
 en copias cifradas, verificadas y almacenadas fuera del clúster y de la VM de
 Docker Desktop.
 
+El contrato operativo, el perfil de un nodo, la entrega de credenciales, las
+capacidades S3 admitidas y la recuperación se detallan en
+[Almacenamiento de objetos](almacenamiento-objetos.md). En development se usará
+una sola réplica de cada rol y colocación `000`: crear copias en el mismo Mac no
+reduce el dominio de fallo. Master, filer y volume tendrán persistencia
+independiente, acceso exclusivamente interno y backup lógico cifrado con
+restauración aislada.
+
 ### 4.5 Trabajadores en segundo plano
 
 Los trabajos de negocio escritos en Go podrán ejecutarse desde el mismo binario
