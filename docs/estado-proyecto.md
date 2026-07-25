@@ -19,6 +19,8 @@ documentado o reconciliado pero no preparado.
 - Kubernetes, Flux, Helm/Kustomize y GitOps;
 - Envoy Gateway, ZITADEL, OpenFGA, ReefOps Authorizer y Linkerd;
 - PostgreSQL, PostGIS y pgvector;
+- CloudNativePG 1.30, PostgreSQL 18.4, imagen PostGIS standard y plugin
+  CNPG-I Barman Cloud para development;
 - NATS JetStream; MQTT queda diferido y la frontera IoT preferente será Home
   Assistant;
 - SeaweedFS Community accedido mediante el puerto S3;
@@ -288,9 +290,11 @@ reales; no bloquean el siguiente gate stateful.
 El gate inicial de SeaweedFS definido en
 [Almacenamiento de objetos](almacenamiento-objetos.md) está cerrado: mirror OCI,
 credencial OpenBao/ESO, reconciliación GitOps, contrato S3/persistencia y restore
-lógico aislado están verificados. La siguiente decisión stateful es la
-arquitectura de PostgreSQL y CloudNativePG; deberá coordinar consistencia y
-recuperación con los objetos antes de almacenar medios funcionales.
+lógico aislado están verificados. La arquitectura de
+[PostgreSQL y CloudNativePG](postgresql.md) ya está decidida: una base y roles
+propios por dominio, backup/WAL hacia SeaweedFS, exportación cifrada al QNAP y
+restore aislado. PostgreSQL seguirá como no desplegado hasta superar esos
+gates.
 
 El primer corte funcional incluirá autorización, persistencia, auditoría,
 outbox, evento versionado y trazas. No será un CRUD aislado de esas garantías.
