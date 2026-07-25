@@ -159,6 +159,13 @@ política y valor. Nunca imprime el token ni el valor.
 El [runbook de ESO y OpenBao](runbooks/eso-openbao.md) contiene comandos,
 criterios de aceptación, evidencia y diagnóstico seguro.
 
+Los namespaces funcionales reutilizarán un controller ESO por frontera de
+confianza. En `reefops-data`, SeaweedFS y PostgreSQL compartirán el proceso
+reconciliador, pero no ServiceAccount de autenticación, `SecretStore`, política
+OpenBao ni Secret destino. La raíz del controller será neutral
+(`external-secrets-data`), evitando que un componente dependa del ciclo de vida
+GitOps de otro.
+
 ## 4. GitHub Secrets
 
 Antes de crear un GitHub Secret se intentará, por este orden:

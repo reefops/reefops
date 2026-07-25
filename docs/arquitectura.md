@@ -565,13 +565,18 @@ OpenBao se limitará a una ruta sintética. No habrá token estático,
 `ClusterSecretStore` global, comodines de namespace ni `skipVerify`.
 
 Cada entorno futuro tendrá stores, identidades, políticas, CA y rutas propias.
-Cada namespace consumidor tendrá una instancia ESO scoped o un mecanismo
-equivalente con RBAC propio; no se ampliará el controller sintético a todo el
-clúster. Antes de entregar secretos a otro namespace se distribuirá únicamente
-el trust root público y se creará una identidad por consumidor. El ciclo de
-aceptación comprobará autenticación, lectura, refresco, revocación y auditoría
-sin revelar el valor. La retirada tendrá un procedimiento separado que
-preserve o elimine cada Secret destino según su contrato.
+ESO se desplegará por frontera de confianza y namespace, no por producto: un
+controller scoped de `reefops-data` podrá reconciliar los `ExternalSecret` de
+SeaweedFS, PostgreSQL y futuros servicios de datos sin que ninguno dependa de
+la raíz GitOps de otro. Cada consumidor conservará ServiceAccount, TokenRequest,
+`SecretStore` y política OpenBao propios. No se ampliará el controller sintético
+a todo el clúster ni se introducirá un controller por cada componente.
+
+Antes de entregar secretos a otro namespace se distribuirá únicamente el trust
+root público y se creará una identidad por consumidor. El ciclo de aceptación
+comprobará autenticación, lectura, refresco, revocación y auditoría sin revelar
+el valor. La retirada tendrá un procedimiento separado que preserve o elimine
+cada Secret destino según su contrato.
 
 ### AD-026. Home Assistant como frontera IoT preferente
 
@@ -1307,6 +1312,11 @@ de recuperación no residirán en el mismo NAS. Se añadirá un segundo medio pa
 completar 3-2-1 y la estrategia se endurecerá cuando el sistema controle vida
 animal crítica.
 
+El destino externo es un puerto operativo configurable, no una dependencia de
+la topología ReefOps. Development usa actualmente un QNAP, pero otra instalación
+podrá exportar el mismo paquete cifrado a otro NAS, disco, servicio cloud o
+medio offline sin sustituir SeaweedFS ni modificar el `ObjectStore` de CNPG.
+
 Cada backup y restauración conservará `operation_id`, alcance, manifiesto,
 versiones, hashes, destino, cifrado, operador, tiempos, resultado y prueba de
 lectura. Una restauración de ensayo generará evidencia sin confundirse con una
@@ -1353,6 +1363,11 @@ después de fijar almacenamiento, retención y redacción de logs. OpenTelemetry
 Collector y Tempo precederán al primer servicio que emita trazas, pero no se
 desplegarán sin consumidores. El alcance y la aceptación de la primera puerta
 se definen en [observabilidad mínima](observabilidad.md).
+
+La dependencia es siempre unidireccional: monitores, reglas y dashboards
+dependen del componente observado. OpenBao, Envoy Gateway, SeaweedFS,
+CloudNativePG y sus operandos nunca dependerán de que Prometheus, Grafana o su
+configuración estén disponibles para reconciliarse o prestar servicio.
 
 ## 13. Disponibilidad y degradación
 
