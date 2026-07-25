@@ -59,7 +59,14 @@ documentado o reconciliado pero no preparado.
 - alertado sintético propagado y resuelto, consultas Grafana→Prometheus,
   reinicios y contenido persistente verificados con evidencia encadenada;
 - backup cifrado de la evidencia de observabilidad en el QNAP, descifrado y
-  verificado contra su manifiesto.
+  verificado contra su manifiesto;
+- identidad declarativa del entorno `development` reconciliada por Flux;
+- Gateway API y Envoy Gateway 1.8.3 desplegados como fundación inerte, con
+  chart, controlador y rate-limit latente fijados por digest;
+- controlador limitado a su namespace, métricas descubiertas por Prometheus y
+  ausencia de Gateway, rutas, plano de datos y servicios expuestos verificada;
+- cadena de aceptación de Envoy Gateway, incluido el intento temporal fallido,
+  respaldada con `age` en el QNAP y verificada contra su manifiesto.
 
 El OpenBao operativo pertenece a development. No hay un entorno production
 desplegado ni reservado en el clúster local. Cuando se cree, su autoridad
@@ -95,7 +102,8 @@ offline y la estrategia 3-2-1 no está completa.
 - SeaweedFS;
 - NATS JetStream;
 - integración con Home Assistant;
-- Envoy Gateway y Linkerd;
+- plano de datos y rutas de Envoy Gateway;
+- Linkerd;
 - ZITADEL, OpenFGA y ReefOps Authorizer;
 - aplicaciones Angular, Go o Python;
 - dominios funcionales.
@@ -167,6 +175,21 @@ estado y UIDs de PVC. La cadena local contiene también los intentos fallidos
 previos y su fase. Los tres registros se respaldaron cifrados en el QNAP y se
 verificaron mediante descifrado temporal.
 
+### 3.4 Fundación inerte de entrada
+
+Gateway API y el controlador de Envoy Gateway están operativos en development.
+Flux aplica la identidad del entorno y las raíces separadas de stack y
+configuración al mismo commit exacto de plataforma. Las CRD están establecidas,
+el Deployment preparado y Prometheus mantiene su target `up`.
+
+La aceptación demostró globalmente que no existen `GatewayClass`, `Gateway`,
+rutas, `EnvoyProxy`, `Ingress`, plano de datos, `NodePort`, `LoadBalancer`,
+`externalIPs`, `hostNetwork` ni `hostPort` pertenecientes a esta superficie.
+El primer intento alcanzó la comprobación de métricas antes de que Prometheus
+completara la recarga y su primer scrape; la ventana se corrigió en código a
+tres minutos y el segundo intento pasó. Ambos registros permanecen enlazados y
+su backup cifrado fue descifrado y verificado.
+
 ## 4. Decisiones operativas iniciales
 
 Para desarrollo local se fijan provisionalmente:
@@ -204,25 +227,22 @@ después por MCP. Este adaptador no es fuente de verdad ni sustituye GitOps.
 Los objetivos se revisarán antes de que ReefOps ejecute acciones físicas o
 proteja vida animal. En ese perfil, un RPO de 24 horas puede ser insuficiente.
 
-## 5. Secuencia después de la observabilidad mínima
+## 5. Secuencia después de la fundación de entrada
 
-Antes de la siguiente etapa stateful se instalará la fundación inerte de
-Gateway API y Envoy Gateway. Esta repriorización permite consolidar el contrato
-de acceso y observar el controlador, pero no crea listeners, rutas, plano de
-datos ni exposición de Grafana. Sus límites y criterios están definidos en
-[Entrada norte-sur y acceso](entrada-y-acceso.md).
+La fundación inerte de Gateway API y Envoy Gateway ya está verificada. No crea
+listeners, rutas, plano de datos ni exposición de Grafana. Sus límites y
+criterios están definidos en [Entrada norte-sur y acceso](entrada-y-acceso.md).
 
-Después continuará la etapa stateful, manteniendo registrada la tercera fase de
-custodia como riesgo residual:
+La etapa stateful continúa manteniendo registrada la tercera fase de custodia
+como riesgo residual:
 
-1. instalar y verificar la fundación inerte de Envoy Gateway;
-2. desplegar SeaweedFS y ejecutar el contrato S3 de ReefOps;
-3. decidir y desplegar PostgreSQL mediante CloudNativePG con backup y
+1. desplegar SeaweedFS y ejecutar el contrato S3 de ReefOps;
+2. decidir y desplegar PostgreSQL mediante CloudNativePG con backup y
    restauración;
-4. desplegar NATS JetStream;
-5. completar entrada, identidad, autorización y malla;
-6. implementar el primer corte vertical de instalaciones y sistemas acuáticos;
-7. integrar Home Assistant cuando el corte vertical necesite dispositivos.
+3. desplegar NATS JetStream;
+4. completar entrada, identidad, autorización y malla;
+5. implementar el primer corte vertical de instalaciones y sistemas acuáticos;
+6. integrar Home Assistant cuando el corte vertical necesite dispositivos.
 
 Loki y Tempo siguen diferidos hasta disponer de almacenamiento y consumidores
 reales; no bloquean el siguiente gate stateful.
