@@ -29,8 +29,9 @@ para completar el diagrama final.
   proveedores externos.
 - Prometheus, Alertmanager y Grafana son `ClusterIP`; el acceso operativo
   temporal se realiza mediante `kubectl port-forward`.
-- No existe ingreso norte-sur hasta desplegar Envoy Gateway, ZITADEL, OpenFGA y
-  ReefOps Authorizer.
+- La presencia futura del controlador inerte de Envoy Gateway no crea ingreso
+  norte-sur. No se publicará ninguna interfaz hasta desplegar listeners y rutas
+  protegidos con TLS, ZITADEL, OpenFGA y ReefOps Authorizer.
 - Grafana es de solo lectura para el acceso operativo inicial, no crea una
   cuenta administradora y no recibe permisos sobre la API Kubernetes.
   Dashboards, fuentes de datos y alertas se cambian mediante GitOps, no desde

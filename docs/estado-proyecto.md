@@ -206,16 +206,23 @@ proteja vida animal. En ese perfil, un RPO de 24 horas puede ser insuficiente.
 
 ## 5. Secuencia después de la observabilidad mínima
 
-La siguiente etapa stateful puede comenzar manteniendo registrada la tercera
-fase de custodia como riesgo residual:
+Antes de la siguiente etapa stateful se instalará la fundación inerte de
+Gateway API y Envoy Gateway. Esta repriorización permite consolidar el contrato
+de acceso y observar el controlador, pero no crea listeners, rutas, plano de
+datos ni exposición de Grafana. Sus límites y criterios están definidos en
+[Entrada norte-sur y acceso](entrada-y-acceso.md).
 
-1. desplegar SeaweedFS y ejecutar el contrato S3 de ReefOps;
-2. decidir y desplegar PostgreSQL mediante CloudNativePG con backup y
+Después continuará la etapa stateful, manteniendo registrada la tercera fase de
+custodia como riesgo residual:
+
+1. instalar y verificar la fundación inerte de Envoy Gateway;
+2. desplegar SeaweedFS y ejecutar el contrato S3 de ReefOps;
+3. decidir y desplegar PostgreSQL mediante CloudNativePG con backup y
    restauración;
-3. desplegar NATS JetStream;
-4. completar entrada, identidad, autorización y malla;
-5. implementar el primer corte vertical de instalaciones y sistemas acuáticos;
-6. integrar Home Assistant cuando el corte vertical necesite dispositivos.
+4. desplegar NATS JetStream;
+5. completar entrada, identidad, autorización y malla;
+6. implementar el primer corte vertical de instalaciones y sistemas acuáticos;
+7. integrar Home Assistant cuando el corte vertical necesite dispositivos.
 
 Loki y Tempo siguen diferidos hasta disponer de almacenamiento y consumidores
 reales; no bloquean el siguiente gate stateful.
