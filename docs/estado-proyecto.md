@@ -67,6 +67,23 @@ documentado o reconciliado pero no preparado.
   ausencia de Gateway, rutas, plano de datos y servicios expuestos verificada;
 - cadena de aceptación de Envoy Gateway, incluido el intento temporal fallido,
   respaldada con `age` en el QNAP y verificada contra su manifiesto.
+- SeaweedFS 4.39.0 desplegado mediante Flux en `reefops-data`, con master,
+  volume, filer y S3 en réplicas únicas y servicios exclusivamente
+  `ClusterIP`;
+- chart reflejado públicamente en GHCR, manifiesto OCI, paquete Helm e imagen
+  fijados y verificados por sus digests independientes;
+- credencial S3 generada una sola vez, custodiada en OpenBao y entregada por
+  ESO mediante una identidad namespaced de mínimo privilegio;
+- master, filer y volume persistentes sobre tres PVC
+  `reefops-hostpath-retain`, conservados durante el reinicio de los cuatro
+  componentes;
+- contrato S3, persistencia, limpieza y evidencia encadenada verificados con
+  payload exclusivamente sintético;
+- backup lógico sintético cifrado con `age` en el QNAP, fuente eliminada y
+  restauración validada en un bucket aislado antes de destruir ambos buckets
+  de ensayo;
+- cuatro targets SeaweedFS `up` en Prometheus, con `ServiceMonitor`, reglas de
+  alerta y dashboard de Grafana reconciliados.
 
 El OpenBao operativo pertenece a development. No hay un entorno production
 desplegado ni reservado en el clúster local. Cuando se cree, su autoridad
@@ -99,7 +116,6 @@ offline y la estrategia 3-2-1 no está completa.
 ### No desplegado
 
 - PostgreSQL;
-- SeaweedFS;
 - NATS JetStream;
 - integración con Home Assistant;
 - plano de datos y rutas de Envoy Gateway;
@@ -190,6 +206,29 @@ completara la recarga y su primer scrape; la ventana se corrigió en código a
 tres minutos y las aceptaciones posteriores pasaron. La cadena final conserva
 los tres registros enlazados y su backup cifrado fue descifrado y verificado.
 
+### 3.5 Almacenamiento de objetos
+
+SeaweedFS se considera operativo para development porque las reconciliaciones
+de prerrequisitos, secretos, stack y configuración están `Ready=True` en las
+revisiones exactas de GitOps y plataforma. La aceptación demostró autenticación,
+ausencia de exposición externa, digests de chart e imagen, creación y limpieza
+de bucket, `PUT`, `GET`, `HEAD`, rango, metadata, tags, checksum,
+`ListObjectsV2`, URL prefirmada, multipart completo y cancelado.
+
+Los cuatro componentes se reiniciaron y el objeto sintético permaneció legible
+con los mismos UIDs de PVC. El backup lógico se cifró antes de escribirse en el
+QNAP, se descifró temporalmente, se restauró en un segundo bucket y se comparó
+antes de limpiar los espacios de ensayo. Prometheus mantiene `up` los targets
+de master, volume, filer y S3.
+
+SeaweedFS 4.39 omite `KeyCount` en `ListObjectsV2`, aunque devuelve la colección
+`Contents` y la clave exacta; esta desviación está documentada y probada. El
+gate demuestra portabilidad lógica dentro del proveedor activo, no DR completo
+tras perder Docker Desktop, sus PV o el Mac. Esa garantía queda abierta hasta
+restaurar el artefacto en una instancia SeaweedFS vacía e independiente. Los
+backups programados de buckets reales se habilitarán cuando exista su primer
+propietario funcional.
+
 ## 4. Decisiones operativas iniciales
 
 Para desarrollo local se fijan provisionalmente:
@@ -233,26 +272,25 @@ La fundación inerte de Gateway API y Envoy Gateway ya está verificada. No crea
 listeners, rutas, plano de datos ni exposición de Grafana. Sus límites y
 criterios están definidos en [Entrada norte-sur y acceso](entrada-y-acceso.md).
 
-La etapa stateful continúa manteniendo registrada la tercera fase de custodia
-como riesgo residual:
+La etapa stateful continúa manteniendo registrados la tercera fase de custodia
+y el DR completo de SeaweedFS como riesgos residuales:
 
-1. desplegar SeaweedFS y ejecutar el contrato S3 de ReefOps;
-2. decidir y desplegar PostgreSQL mediante CloudNativePG con backup y
+1. decidir y desplegar PostgreSQL mediante CloudNativePG con backup y
    restauración;
-3. desplegar NATS JetStream;
-4. completar entrada, identidad, autorización y malla;
-5. implementar el primer corte vertical de instalaciones y sistemas acuáticos;
-6. integrar Home Assistant cuando el corte vertical necesite dispositivos.
+2. desplegar NATS JetStream;
+3. completar entrada, identidad, autorización y malla;
+4. implementar el primer corte vertical de instalaciones y sistemas acuáticos;
+5. integrar Home Assistant cuando el corte vertical necesite dispositivos.
 
 Loki y Tempo siguen diferidos hasta disponer de almacenamiento y consumidores
 reales; no bloquean el siguiente gate stateful.
 
-El gate SeaweedFS ya tiene contrato documentado en
-[Almacenamiento de objetos](almacenamiento-objetos.md). Para cerrarlo todavía
-faltan el mirror OCI verificado, la credencial custodiada en OpenBao, la
-reconciliación GitOps, la prueba S3/persistencia y un backup cifrado restaurado
-en un bucket aislado. Hasta completar esas cinco condiciones SeaweedFS sigue
-figurando como no desplegado.
+El gate inicial de SeaweedFS definido en
+[Almacenamiento de objetos](almacenamiento-objetos.md) está cerrado: mirror OCI,
+credencial OpenBao/ESO, reconciliación GitOps, contrato S3/persistencia y restore
+lógico aislado están verificados. La siguiente decisión stateful es la
+arquitectura de PostgreSQL y CloudNativePG; deberá coordinar consistencia y
+recuperación con los objetos antes de almacenar medios funcionales.
 
 El primer corte funcional incluirá autorización, persistencia, auditoría,
 outbox, evento versionado y trazas. No será un CRUD aislado de esas garantías.
