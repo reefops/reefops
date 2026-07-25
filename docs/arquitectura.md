@@ -286,6 +286,13 @@ base de datos propia. Su superficie administrativa no será pública.
 El APIM no almacenará ni implementará las relaciones detalladas de acuarios,
 organismos o vistas. Consultará el servicio gestionado de AuthZ.
 
+Su despliegue tendrá dos puertas independientes. La primera instala mediante
+GitOps las CRD y el controlador, pero no declara `Gateway`, listeners, rutas ni
+plano de datos. La segunda crea la entrada únicamente con TLS, AuthN y AuthZ
+preparadas y verificadas. Instalar el controlador no constituye autorización
+para exponer una interfaz. El contrato completo está en
+[Entrada norte-sur y acceso](entrada-y-acceso.md).
+
 ### AD-013A. AuthN y AuthZ delegadas en el APIM
 
 Para cada petición protegida, el APIM:
@@ -295,8 +302,9 @@ Para cada petición protegida, el APIM:
 3. determina acción y tipo de recurso desde la ruta y su metadata;
 4. consulta un servicio de autorización externo;
 5. deniega o enruta;
-6. genera un contexto interno firmado;
-7. registra `decision_id`, sujeto, acción, recurso y resultado.
+6. acepta del ReefOps Authorizer únicamente un `ActorContext` firmado y
+   cabeceras incluidas en una allowlist;
+7. registra `authz_decision_id`, sujeto, acción, recurso y resultado.
 
 ```text
 Cliente
@@ -315,7 +323,9 @@ adaptador verificará únicamente la autenticidad, audiencia y antigüedad del
 `ActorContext` interno.
 
 El APIM eliminará cualquier cabecera de identidad proporcionada por el cliente.
-El contexto interno se transmitirá mediante un JWT de vida muy corta o una
+ReefOps Authorizer generará y firmará el contexto interno después de recibir la
+decisión de OpenFGA. Envoy solo propagará la respuesta allowlisted del
+Authorizer. El contexto se transmitirá mediante un JWT de vida muy corta o una
 firma equivalente, no mediante cabeceras confiadas sin protección.
 
 ### AD-014. Autenticación gestionada con ZITADEL
@@ -2469,13 +2479,15 @@ Flux aplicará capas explícitamente dependientes:
 
 1. fuentes y configuración de Flux;
 2. namespaces, quotas y políticas base;
-3. Gateway API, `cert-manager`, OpenBao y entrega de secretos;
+3. `cert-manager`, OpenBao y entrega de secretos;
 4. observabilidad mínima interna;
-5. almacenamiento y servicios de datos;
-6. NATS;
-7. Envoy Gateway y Linkerd;
-8. ZITADEL, OpenFGA y ReefOps Authorizer;
-9. aplicaciones ReefOps.
+5. Gateway API y controlador inerte de Envoy Gateway;
+6. almacenamiento y servicios de datos;
+7. NATS;
+8. Linkerd;
+9. ZITADEL, OpenFGA y ReefOps Authorizer;
+10. aplicaciones ReefOps internas, todavía sin entrada norte-sur;
+11. plano de datos y rutas protegidas de Envoy Gateway.
 
 Cada capa tendrá health checks y no desbloqueará la siguiente hasta estar
 preparada. Las versiones de charts e imágenes estarán fijadas; no se usarán

@@ -16,3 +16,4 @@ salada y salobre.
 - [Entrega ESO con OpenBao](docs/runbooks/eso-openbao.md)
 - [Recuperación de OpenBao](docs/runbooks/openbao-recuperacion.md)
 - [Estado actual y siguiente etapa](docs/estado-proyecto.md)
+- [Entrada norte-sur y acceso](docs/entrada-y-acceso.md)
