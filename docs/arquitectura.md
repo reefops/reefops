@@ -1317,6 +1317,9 @@ La telemetría técnica tendrá muestreo y retención propios, pero nunca será 
 único registro de una decisión funcional. Logs, métricas y trazas enlazarán con
 `correlation_id` cuando exista.
 
+Los identificadores de correlación pertenecen a logs, trazas y evidencias
+estructuradas, no a labels Prometheus de cardinalidad no acotada.
+
 El despliegue será incremental. La puerta inicial de plataforma instalará
 Prometheus Operator, Prometheus, Alertmanager, Grafana, `kube-state-metrics` y
 el exportador del nodo antes de los servicios stateful. Loki se incorporará
