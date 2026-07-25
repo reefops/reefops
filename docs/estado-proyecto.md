@@ -187,8 +187,8 @@ rutas, `EnvoyProxy`, `Ingress`, plano de datos, `NodePort`, `LoadBalancer`,
 `externalIPs`, `hostNetwork` ni `hostPort` pertenecientes a esta superficie.
 El primer intento alcanzó la comprobación de métricas antes de que Prometheus
 completara la recarga y su primer scrape; la ventana se corrigió en código a
-tres minutos y el segundo intento pasó. Ambos registros permanecen enlazados y
-su backup cifrado fue descifrado y verificado.
+tres minutos y las aceptaciones posteriores pasaron. La cadena final conserva
+los tres registros enlazados y su backup cifrado fue descifrado y verificado.
 
 ## 4. Decisiones operativas iniciales
 
