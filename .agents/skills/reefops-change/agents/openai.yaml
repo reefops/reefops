@@ -1,0 +1,4 @@
+interface:
+  display_name: "ReefOps Change"
+  short_description: "Document, implement, and verify ReefOps changes"
+  default_prompt: "Use $reefops-change to implement this ReefOps change documentation-first and validate it."

@@ -1,0 +1,27 @@
+organization:
+  base_permission: none
+repositories:
+  reefops:
+    visibility: public
+    license: Apache-2.0
+  reefops-platform:
+    visibility: public
+    license: Apache-2.0
+  reefops-gitops:
+    visibility: private
+    license: proprietary-private-configuration
+branches:
+  default: main
+  strategy: github-flow
+  merge_method: squash
+  delete_branch_on_merge: true
+  prohibited_permanent_branches:
+    - develop
+    - staging
+    - production
+connectivity:
+  local_inbound_from_github: false
+  flux_repository_access: read-only
+secrets:
+  runtime_authority: openbao-local
+  github_is_replica_for_ci_only: true

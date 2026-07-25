@@ -1,0 +1,73 @@
+version: "3"
+
+tasks:
+  default:
+    desc: Lista las tareas disponibles
+    cmds:
+      - task --list
+
+  tools:
+    desc: Comprueba las toolchains de desarrollo instaladas
+    cmds:
+      - ./.github/scripts/check-dev-tools.sh
+
+  validate:
+    desc: Valida producto, documentación y controles del repositorio
+    deps: [validate-static]
+    cmds:
+      - echo "Validación del producto completa."
+
+  validate-static:
+    desc: Valida el repositorio sin acceder a infraestructura
+    cmds:
+      - ./.github/scripts/check-rf-coverage.sh
+      - ./.github/scripts/check-codex-aids.sh
+      - shellcheck .github/scripts/*.sh
+      - actionlint
+      - ./.github/scripts/check-policies.sh
+      - trivy fs --scanners secret --exit-code 1 --skip-dirs .git .
+      - gitleaks git --no-banner --redact --exit-code 1 .
+
+  github-provision:
+    desc: Configura repositorios existentes sin cambiar su visibilidad
+    preconditions:
+      - sh: test -n "${REEFOPS_GITHUB_OWNER:-}"
+        msg: Define REEFOPS_GITHUB_OWNER con la organización.
+    cmds:
+      - ./.github/scripts/provision-repositories.sh
+
+  github-protect:
+    desc: Protege main en los repositorios compatibles con el plan
+    preconditions:
+      - sh: test -n "${REEFOPS_GITHUB_OWNER:-}"
+        msg: Define REEFOPS_GITHUB_OWNER con la organización.
+    cmds:
+      - ./.github/scripts/protect-main-branches.sh
+
+  github-publicize-product:
+    desc: Audita y hace público el historial raíz del producto
+    deps: [validate-static]
+    preconditions:
+      - sh: test -n "${REEFOPS_GITHUB_OWNER:-}"
+        msg: Define REEFOPS_GITHUB_OWNER con la organización.
+    cmds:
+      - ./.github/scripts/publicize-product-repository.sh
+
+  github-publicize-platform:
+    desc: Audita y hace público exclusivamente el catálogo reutilizable
+    deps: [validate-static]
+    preconditions:
+      - sh: test -n "${REEFOPS_GITHUB_OWNER:-}"
+        msg: Define REEFOPS_GITHUB_OWNER con la organización.
+    cmds:
+      - ./.github/scripts/publicize-platform-repository.sh
+
+  ci-secret-sync:
+    desc: Replica un secreto CI allowlisted desde OpenBao hacia GitHub
+    preconditions:
+      - sh: test -n "${REEFOPS_CI_SECRET_NAME:-}"
+        msg: Define REEFOPS_CI_SECRET_NAME.
+      - sh: test -n "${REEFOPS_CI_SECRET_VERSION:-}"
+        msg: Define una versión explícita en REEFOPS_CI_SECRET_VERSION.
+    cmds:
+      - ./.github/scripts/sync-secret-from-openbao.sh

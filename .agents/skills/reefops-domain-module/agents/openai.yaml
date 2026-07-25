@@ -1,0 +1,4 @@
+interface:
+  display_name: "ReefOps Domain Module"
+  short_description: "Design autonomous event-driven domain modules"
+  default_prompt: "Use $reefops-domain-module to design this ReefOps domain capability with strict event boundaries."

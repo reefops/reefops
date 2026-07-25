@@ -1,0 +1,18 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+
+# Secrets and local credentials
+*.agekey
+*.key
+*.pem
+secrets.dec.yaml
+.openbao-token
+
+# Generated and local tooling
+.task/
+.tmp/
+coverage/
+dist/
+node_modules/

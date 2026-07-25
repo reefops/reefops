@@ -1,0 +1,23 @@
+name: Capacidad
+description: Proponer una nueva capacidad funcional o técnica.
+title: "[Feature] "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Resultado esperado
+      description: Describe el problema y el resultado observable.
+    validations:
+      required: true
+  - type: textarea
+    id: boundaries
+    attributes:
+      label: Dominio y límites
+      description: Propietario, eventos, datos y consumidores conocidos.
+  - type: textarea
+    id: traceability
+    attributes:
+      label: Trazabilidad y seguridad
+      description: Actor, autorización, correlación, auditoría y riesgos.

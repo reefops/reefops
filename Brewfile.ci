@@ -1,0 +1,11 @@
+# Minimal toolset for repository validation on GitHub-hosted macOS runners.
+brew "python@3.12"
+brew "go-task"
+brew "kubernetes-cli@1.34", link: true
+brew "helm"
+brew "ripgrep"
+brew "yq"
+brew "shellcheck"
+brew "actionlint"
+brew "trivy"
+brew "gitleaks"
