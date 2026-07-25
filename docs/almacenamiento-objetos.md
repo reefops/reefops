@@ -60,6 +60,9 @@ digests exactos:
 El contrato registrará resultado y versiones sin almacenar contenido privado
 ni credenciales. `ETag` sólo se tratará como identificador opaco; el hash
 funcional de ReefOps será un checksum explícito calculado sobre el contenido.
+SeaweedFS 4.39 omite `KeyCount` en `ListObjectsV2`; la aceptación valida
+`Contents` y la clave exacta y registra esta desviación sin afirmar
+compatibilidad S3 completa.
 Versionado, lifecycle, notificaciones, políticas de bucket, retención y Object
 Lock quedan prohibidos hasta añadir pruebas portables para cada capacidad.
 
@@ -130,4 +133,3 @@ Una actualización exige repetir render, políticas, contrato S3, persistencia y
 restore. El rollback declarativo puede restaurar manifiestos e imágenes, pero
 no revierte formatos internos ni datos; una versión que cambie el formato de
 disco necesita compatibilidad probada o migración export/import.
-
