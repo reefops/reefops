@@ -53,7 +53,13 @@ documentado o reconciliado pero no preparado.
 - restauración Raft ensayada en una instancia aislada, validada con la identidad
   original y retirada después mediante GitOps;
 - ciclo de recuperación aislada automatizado hasta sellado cifrado de
-  evidencias, cierre idempotente y verificación de limpieza por UID de PVC/PV.
+  evidencias, cierre idempotente y verificación de limpieza por UID de PVC/PV;
+- observabilidad mínima con Prometheus Operator, Prometheus, Alertmanager,
+  Grafana, kube-state-metrics y node-exporter, reconciliada por Flux;
+- alertado sintético propagado y resuelto, consultas Grafana→Prometheus,
+  reinicios y contenido persistente verificados con evidencia encadenada;
+- backup cifrado de la evidencia de observabilidad en el QNAP, descifrado y
+  verificado contra su manifiesto.
 
 El OpenBao operativo pertenece a development. No hay un entorno production
 desplegado ni reservado en el clúster local. Cuando se cree, su autoridad
@@ -91,7 +97,6 @@ offline y la estrategia 3-2-1 no está completa.
 - integración con Home Assistant;
 - Envoy Gateway y Linkerd;
 - ZITADEL, OpenFGA y ReefOps Authorizer;
-- observabilidad;
 - aplicaciones Angular, Go o Python;
 - dominios funcionales.
 
@@ -148,6 +153,20 @@ La entrega declarativa se considera operativa para development porque:
 El procedimiento y los fallos conocidos resueltos se mantienen en el
 [runbook de ESO y OpenBao](runbooks/eso-openbao.md).
 
+### 3.3 Observabilidad mínima
+
+La observabilidad se considera operativa para development porque Flux aplica
+el mismo commit completo validado localmente, las reconciliaciones de stack y
+configuración están `Ready=True`, los servicios son internos y las imágenes y
+el chart están fijados por digest.
+
+La aceptación creó una alerta identificada por operación, comprobó su llegada
+y resolución en Prometheus y Alertmanager, validó dashboard, datasource y
+consulta de Grafana, reinició los tres componentes stateful y conservó muestras,
+estado y UIDs de PVC. La cadena local contiene también los intentos fallidos
+previos y su fase. Los tres registros se respaldaron cifrados en el QNAP y se
+verificaron mediante descifrado temporal.
+
 ## 4. Decisiones operativas iniciales
 
 Para desarrollo local se fijan provisionalmente:
@@ -185,22 +204,21 @@ después por MCP. Este adaptador no es fuente de verdad ni sustituye GitOps.
 Los objetivos se revisarán antes de que ReefOps ejecute acciones físicas o
 proteja vida animal. En ese perfil, un RPO de 24 horas puede ser insuficiente.
 
-## 5. Secuencia después de la entrega de secretos
+## 5. Secuencia después de la observabilidad mínima
 
 La siguiente etapa stateful puede comenzar manteniendo registrada la tercera
 fase de custodia como riesgo residual:
 
-1. desplegar la
-   [observabilidad mínima de development](observabilidad.md), comenzando por
-   métricas, alertas y dashboards; logs y trazas se añadirán cuando tengan
-   consumidores y almacenamiento definidos;
-2. desplegar SeaweedFS y ejecutar el contrato S3 de ReefOps;
-3. decidir y desplegar PostgreSQL mediante CloudNativePG con backup y
+1. desplegar SeaweedFS y ejecutar el contrato S3 de ReefOps;
+2. decidir y desplegar PostgreSQL mediante CloudNativePG con backup y
    restauración;
-4. desplegar NATS JetStream;
-5. completar entrada, identidad, autorización y malla;
-6. implementar el primer corte vertical de instalaciones y sistemas acuáticos;
-7. integrar Home Assistant cuando el corte vertical necesite dispositivos.
+3. desplegar NATS JetStream;
+4. completar entrada, identidad, autorización y malla;
+5. implementar el primer corte vertical de instalaciones y sistemas acuáticos;
+6. integrar Home Assistant cuando el corte vertical necesite dispositivos.
+
+Loki y Tempo siguen diferidos hasta disponer de almacenamiento y consumidores
+reales; no bloquean el siguiente gate stateful.
 
 El primer corte funcional incluirá autorización, persistencia, auditoría,
 outbox, evento versionado y trazas. No será un CRUD aislado de esas garantías.
