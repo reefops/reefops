@@ -82,6 +82,11 @@ por namespace y ServiceAccount. Pertenecer a ReefOps no concede acceso a
 PostgreSQL. El acceso administrativo se realizará mediante Kubernetes y
 `kubectl cnpg`, quedará auditado y no requerirá publicar el puerto 5432.
 
+La entrega ESO de `reefops-data` reutilizará un único controller scoped a esa
+frontera. SeaweedFS y PostgreSQL tendrán identidades, stores y políticas
+OpenBao separados; ninguna reconciliación PostgreSQL dependerá de una raíz
+denominada o propiedad de SeaweedFS para obtener el controller.
+
 El primer despliegue no creará una base funcional compartida. La aceptación
 creará y eliminará una base y roles sintéticos. Las bases de dominio aparecerán
 solo junto con el módulo propietario y sus migraciones.
@@ -102,6 +107,12 @@ Atlas frente a Goose sigue siendo una decisión del primer servicio, no del
 operador. La plataforma garantiza el motor y la recuperación; el dominio
 garantiza la compatibilidad de sus migraciones.
 
+CNPG 1.30 gestionará declarativamente las bases con `Database` y los roles con
+`DatabaseRole`. OpenBao seguirá generando y custodiando el valor, ESO entregará
+un Secret `kubernetes.io/basic-auth` y CNPG aplicará owner, migrador y runtime.
+No se crearán scripts administrativos paralelos ni se permitirá que OpenBao y
+CNPG compitan por mutar el mismo rol.
+
 ## Backup, WAL y recuperación
 
 Barman Cloud archivará WAL continuamente y realizará un backup físico diario en
@@ -112,9 +123,10 @@ externas se derivarán mediante el proceso de custodia.
 SeaweedFS está dentro de la misma VM de Kubernetes y por sí solo no es un
 destino de DR. Tras cada backup aceptado, un proceso local exportará inventario
 y objetos Barman, verificará checksums, cifrará con `age` y escribirá el paquete
-en un destino externo allowlisted fuera de la VM. La ruta concreta pertenece a
-la configuración privada de plataforma. La identidad privada `age` no se
-almacenará en el NAS.
+en un destino externo allowlisted fuera de la VM. El adaptador y la ruta
+concreta pertenecen a la configuración privada de cada instalación. Development
+usa un QNAP, pero el contrato admite cualquier destino capaz de custodiar el
+paquete cifrado. La identidad privada `age` no se almacenará junto a la copia.
 
 La puerta inicial exige:
 
@@ -122,7 +134,8 @@ La puerta inicial exige:
 2. restauración en un segundo `Cluster` CNPG aislado;
 3. comparación de datos, extensiones y marcador de consistencia;
 4. eliminación del clúster de ensayo sin borrar el backup fuente;
-5. exportación cifrada al QNAP y verificación de manifiesto;
+5. exportación cifrada al destino externo configurado y verificación de
+   manifiesto;
 6. evidencia encadenada con actor, autorización, revisiones, digests, LSN,
    timeline, tiempos, PVC, correlación, causación y resultado.
 
