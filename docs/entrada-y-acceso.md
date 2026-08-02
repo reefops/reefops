@@ -185,20 +185,35 @@ La aceptación correlacionará cada fallo, comprobará el status esperado, la
 ausencia de llamada al caso de uso y el audit de denegación. También probará
 negativamente el acceso directo y las cabeceras falsificadas.
 
-## 9. Decisiones necesarias para la segunda puerta
+## 9. Decisiones de la segunda puerta development
 
-Antes de crear el primer `Gateway` se resolverán:
+La primera entrada protegida queda limitada al host operador:
 
-1. dominio local y resolución para clientes autorizados;
-2. alcance: Mac, LAN o red privada;
-3. confianza de CA en navegadores y dispositivos;
-4. listeners, namespaces y `allowedRoutes`;
-5. clientes OIDC, callbacks HTTPS y flujos JWT;
-6. protocolo y contrato de ReefOps Authorizer;
-7. rate limiting y almacenamiento asociado;
-8. redacción, retención y destino de access logs y audit;
-9. digest de Envoy Proxy, allowlist de cabeceras y límites;
-10. validación de correlación y contrato de reintentos.
+1. usa `reefops.localhost` y `identity.reefops.localhost`, resueltos por el
+   cliente local; no anuncia nombres en la LAN;
+2. el `Gateway` conserva Service `ClusterIP` y se alcanza inicialmente mediante
+   `port-forward`; publicar por LAN exige una puerta posterior;
+3. cert-manager emite TLS desde una CA development separada cuya confianza se
+   instala solo en clientes autorizados;
+4. el listener HTTPS vive en `reefops-gateway-system` y admite rutas únicamente
+   de namespaces etiquetados `reefops.io/gateway-access=protected`;
+5. ZITADEL usa Authorization Code con PKCE para Angular y audiencia distinta
+   para APIs; no se habilita password grant;
+6. ReefOps Authorizer implementa `ext_authz` HTTP, recibe una allowlist cerrada
+   de metadata de ruta y devuelve únicamente decisión, sujeto y un
+   `ActorContext` firmado de vida corta;
+7. development aplica límites locales en Envoy sin un almacén distribuido; no
+   despliega el rate-limit latente hasta necesitar cuotas compartidas;
+8. access logs se redactan y escriben a stdout; el audit funcional append-only
+   pertenece al Authorizer y se conservará en PostgreSQL;
+9. Envoy Proxy queda fijado por digest y elimina `Authorization`, cabeceras de
+   actor y forwarded entrantes antes de regenerar su allowlist;
+10. `correlation_id` debe ser UUID, se genera si falta, y no hay retries
+    automáticos para métodos mutadores.
 
-Hasta completar estas decisiones, Grafana seguirá usando un `port-forward`
-efímero autenticado por Kubernetes.
+ZITADEL, OpenFGA y sus consolas no reciben rutas administrativas genéricas. La
+ruta de identidad expone únicamente lo requerido por OIDC y login. OpenFGA no
+tiene ruta Gateway.
+
+Grafana sigue usando un `port-forward` efímero autenticado por Kubernetes; no
+forma parte de esta puerta.

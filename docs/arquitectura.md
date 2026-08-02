@@ -2446,9 +2446,8 @@ podrán transportar texto o eventos ya minimizados y autorizados.
 - Alcance inicial de TimescaleDB frente a particionado nativo.
 - Destino físico externo para backups del Mac mini.
 - Dominio DNS local y autoridad certificadora para desarrollo.
-- Instalación de Linkerd mediante init container o CNI.
-- Modelo inicial de relaciones o políticas de autorización.
-- Disponibilidad esperada de ZITADEL y OpenFGA en el único nodo.
+- Rotación del trust anchor Linkerd sin interrupción antes de producción.
+- Evolución del modelo inicial OpenFGA después del primer corte vertical.
 - Estrategia de actualización para instalaciones completamente desconectadas.
 - Revisión de RPO/RTO antes de controlar vida animal; desarrollo parte de RPO
   24 horas y RTO 4 horas.
