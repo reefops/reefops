@@ -17,3 +17,4 @@ salada y salobre.
 - [Recuperación de OpenBao](docs/runbooks/openbao-recuperacion.md)
 - [Estado actual y siguiente etapa](docs/estado-proyecto.md)
 - [Entrada norte-sur y acceso](docs/entrada-y-acceso.md)
+- [Identidad y autorización](docs/identidad-autorizacion.md)
