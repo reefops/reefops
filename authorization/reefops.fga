@@ -27,6 +27,7 @@ type installation
 
     define has_view_role: owner or administrator or caretaker or technician or observer
     define has_operate_role: owner or administrator or caretaker or technician
+    define belongs_to_active_org: belongs_to_active_org from organization
     define can_view: has_view_role and belongs_to_active_org from organization
     define can_operate: has_operate_role and belongs_to_active_org from organization
     define can_administer: (owner or administrator) and belongs_to_active_org from organization
@@ -37,8 +38,9 @@ type aquatic_system
     define installation: [installation]
     define viewer: [user]
     define operator: [user]
-    define can_view: viewer or operator or can_view from installation
-    define can_operate: operator or can_operate from installation
+    define belongs_to_active_org: belongs_to_active_org from installation
+    define can_view: (viewer or operator or can_view from installation) and belongs_to_active_org
+    define can_operate: (operator or can_operate from installation) and belongs_to_active_org
     define can_administer: can_administer from installation
 
 type resource
@@ -48,8 +50,9 @@ type resource
     define inherits_view_from: [aquatic_system]
     define viewer: [user]
     define editor: [user]
-    define can_view: viewer or editor or can_view from inherits_view_from
-    define can_edit: editor
+    define belongs_to_active_org: belongs_to_active_org from parent
+    define can_view: (viewer or editor or can_view from inherits_view_from) and belongs_to_active_org
+    define can_edit: editor and belongs_to_active_org
 
 type share_link
 

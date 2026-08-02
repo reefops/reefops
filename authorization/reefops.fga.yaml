@@ -58,6 +58,9 @@ tests:
       - user: aquatic_system:reef-a
         relation: inherits_view_from
         object: resource:measurement-inherited
+      - user: aquatic_system:reef-a
+        relation: parent
+        object: resource:measurement-inherited
       # Represents the contextual tuple supplied for this request in production.
       - user: user:alice
         relation: active_member
@@ -106,3 +109,41 @@ tests:
           current_time: "2026-08-02T20:00:00Z"
         assertions:
           can_view: false
+
+  - name: direct grants remain scoped to the active organization
+    tuples:
+      - user: user:alice
+        relation: member
+        object: organization:org-a
+      - user: user:alice
+        relation: member
+        object: organization:org-b
+      - user: organization:org-b
+        relation: organization
+        object: installation:installation-b
+      - user: installation:installation-b
+        relation: installation
+        object: aquatic_system:reef-b
+      - user: user:alice
+        relation: operator
+        object: aquatic_system:reef-b
+      - user: aquatic_system:reef-b
+        relation: parent
+        object: resource:measurement-b
+      - user: user:alice
+        relation: editor
+        object: resource:measurement-b
+      - user: user:alice
+        relation: active_member
+        object: organization:org-a
+    check:
+      - user: user:alice
+        object: aquatic_system:reef-b
+        assertions:
+          can_view: false
+          can_operate: false
+      - user: user:alice
+        object: resource:measurement-b
+        assertions:
+          can_view: false
+          can_edit: false

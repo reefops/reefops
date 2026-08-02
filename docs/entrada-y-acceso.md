@@ -199,8 +199,8 @@ La primera entrada protegida queda limitada al host operador:
    de namespaces etiquetados `reefops.io/gateway-access=protected`;
 5. ZITADEL usa Authorization Code con PKCE para Angular y audiencia distinta
    para APIs; no se habilita password grant;
-6. ReefOps Authorizer implementa `ext_authz` HTTP, recibe una allowlist cerrada
-   de metadata de ruta y devuelve únicamente decisión, sujeto y un
+6. ReefOps Authorizer implementa Envoy `ext_authz` v3 mediante gRPC, recibe una
+   allowlist cerrada de metadata de ruta y devuelve únicamente decisión, sujeto y un
    `ActorContext` firmado de vida corta;
 7. development aplica límites locales en Envoy sin un almacén distribuido; no
    despliega el rate-limit latente hasta necesitar cuotas compartidas;
