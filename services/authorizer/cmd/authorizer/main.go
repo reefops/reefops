@@ -25,6 +25,9 @@ import (
 	grpc_health_v1 "google.golang.org/grpc/health/grpc_health_v1"
 )
 
+const maxConcurrentGRPCStreams uint32 = 256
+const maxGRPCMessageBytes = 64 << 10
+
 func main() {
 	observability.ConfigureLogger()
 	if err := run(); err != nil {
@@ -84,7 +87,7 @@ func run() error {
 		return fmt.Errorf("listen: %w", err)
 	}
 	metrics, registry := observability.NewMetrics()
-	server := grpc.NewServer(grpc.StatsHandler(otelgrpc.NewServerHandler()))
+	server := grpc.NewServer(grpc.StatsHandler(otelgrpc.NewServerHandler()), grpc.MaxConcurrentStreams(maxConcurrentGRPCStreams), grpc.MaxRecvMsgSize(maxGRPCMessageBytes), grpc.MaxSendMsgSize(maxGRPCMessageBytes))
 	authv3.RegisterAuthorizationServer(server, grpcauthz.New(service, metrics))
 	healthServer := health.NewServer()
 	healthServer.SetServingStatus("envoy.service.auth.v3.Authorization", grpc_health_v1.HealthCheckResponse_SERVING)
