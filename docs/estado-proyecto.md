@@ -86,6 +86,13 @@ documentado o reconciliado pero no preparado.
   de ensayo;
 - cuatro targets SeaweedFS `up` en Prometheus, con `ServiceMonitor`, reglas de
   alerta y dashboard de Grafana reconciliados.
+- CloudNativePG 1.30 y CNPG-I Barman Cloud 0.13 desplegados mediante Flux, con
+  una instancia PostgreSQL 18.4/PostGIS, TLS y PVC retenido de 20 GiB;
+- backup físico y archivado continuo de WAL hacia SeaweedFS verificados;
+- aceptación SQL de transacciones, rollback, constraints, PostGIS, pgvector,
+  particionado y persistencia tras reinicio superada;
+- simulacro PITR aislado ligado a un backup base y restore point explícitos,
+  verificado desde estado durable y retirado después mediante GitOps.
 
 El OpenBao operativo pertenece a development. No hay un entorno production
 desplegado ni reservado en el clúster local. Cuando se cree, su autoridad
@@ -117,7 +124,6 @@ offline y la estrategia 3-2-1 no está completa.
 
 ### No desplegado
 
-- PostgreSQL;
 - NATS JetStream;
 - integración con Home Assistant;
 - plano de datos y rutas de Envoy Gateway;
@@ -274,15 +280,18 @@ La fundación inerte de Gateway API y Envoy Gateway ya está verificada. No crea
 listeners, rutas, plano de datos ni exposición de Grafana. Sus límites y
 criterios están definidos en [Entrada norte-sur y acceso](entrada-y-acceso.md).
 
-La etapa stateful continúa manteniendo registrados la tercera fase de custodia
-y el DR completo de SeaweedFS como riesgos residuales:
+La etapa stateful continúa manteniendo registrados la tercera fase de custodia,
+el DR completo de SeaweedFS y la rehidratación PostgreSQL desde copia externa
+como riesgos residuales. PostgreSQL y su simulacro PITR dentro del backend S3
+activo ya están cerrados. La secuencia vigente es:
 
-1. decidir y desplegar PostgreSQL mediante CloudNativePG con backup y
-   restauración;
-2. desplegar NATS JetStream;
-3. completar entrada, identidad, autorización y malla;
-4. implementar el primer corte vertical de instalaciones y sistemas acuáticos;
-5. integrar Home Assistant cuando el corte vertical necesite dispositivos.
+1. desplegar y aceptar NATS JetStream;
+2. desplegar Linkerd con identidad de workload y mTLS;
+3. desplegar ZITADEL, OpenFGA y ReefOps Authorizer sin publicar superficies
+   administrativas;
+4. materializar el Gateway local protegido y sus rutas de aceptación;
+5. implementar el primer corte vertical de instalaciones y sistemas acuáticos;
+6. integrar Home Assistant cuando el corte vertical necesite dispositivos.
 
 Loki y Tempo siguen diferidos hasta disponer de almacenamiento y consumidores
 reales; no bloquean el siguiente gate stateful.
@@ -291,10 +300,10 @@ El gate inicial de SeaweedFS definido en
 [Almacenamiento de objetos](almacenamiento-objetos.md) está cerrado: mirror OCI,
 credencial OpenBao/ESO, reconciliación GitOps, contrato S3/persistencia y restore
 lógico aislado están verificados. La arquitectura de
-[PostgreSQL y CloudNativePG](postgresql.md) ya está decidida: una base y roles
-propios por dominio, backup/WAL hacia SeaweedFS, exportación cifrada al QNAP y
-restore aislado. PostgreSQL seguirá como no desplegado hasta superar esos
-gates.
+[PostgreSQL y CloudNativePG](postgresql.md) está materializada para development:
+una base inicial neutral, backup/WAL hacia SeaweedFS y restore aislado. La
+rehidratación desde una copia cifrada externa sigue siendo el gate de desastre,
+no un requisito para comenzar el siguiente componente de plataforma.
 
 El primer corte funcional incluirá autorización, persistencia, auditoría,
 outbox, evento versionado y trazas. No será un CRUD aislado de esas garantías.
