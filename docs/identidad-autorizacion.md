@@ -164,6 +164,24 @@ token opaco después de validar su hash.
 
 - El store ID y `authorization_model_id` estarán fijados en configuración
   entregada por secretos/configuración GitOps.
+- Cada entorno tendrá exactamente un store con nombre estable. La primera
+  ejecución sólo podrá crearlo si no existe configuración persistida y no hay
+  stores homónimos; después se resolverá exclusivamente por el `store_id`
+  custodiado y fallará ante ausencia, nombre/entorno incoherente o duplicados.
+- El bootstrap calculará el digest del modelo revisado. Si el modelo activo
+  coincide, será un no-op; si cambia, escribirá una versión inmutable nueva y
+  sólo entonces actualizará en OpenBao el `store_id`, el
+  `authorization_model_id` y el digest activado.
+- Los identificadores runtime se entregarán mediante ESO al Authorizer. No se
+  fijarán IDs específicos de un entorno ni credenciales en Git.
+- El contrato se promoverá como artefacto OCI inmutable con DSL, JSON canónico,
+  pruebas, commit de producto, digest, SBOM y firma; ningún bootstrap descargará
+  una rama mutable.
+- Crear, probar, promover o revertir un modelo producirá evidencia append-only
+  con actor, correlación, revisión/digest, modelo previo/nuevo y resultado. El
+  valor activo en OpenBao no sustituye esa historia.
+- Un rollback cambia explícitamente el modelo activo a un ID anterior ya
+  probado; no elimina modelos, stores, relaciones ni evidencia histórica.
 - Cada modelo será inmutable, revisado y probado antes de activarse.
 - Los dominios no escribirán OpenFGA directamente.
 - Consumidores idempotentes proyectarán eventos de membresía, propiedad,
