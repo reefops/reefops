@@ -675,10 +675,21 @@ Stack inicial:
 - OpenAPI para el contrato externo;
 - `oapi-codegen` para servidor, modelos y cliente TypeScript;
 - `slog` y OpenTelemetry;
-- Atlas o Goose para migraciones.
+- Goose para migraciones SQL secuenciales y transaccionales;
+- `sqlc` para generar acceso PostgreSQL tipado desde SQL revisado.
 
 No se utilizará un ORM generalista como centro del modelo. Las reglas residirán
 en el dominio y las consultas complejas se expresarán explícitamente.
+
+Goose se ejecutará mediante un migrador singleton con credencial distinta del
+runtime y bloqueo de sesión PostgreSQL. Las migraciones SQL quedarán embebidas
+en el binario/artefacto versionado. El proceso de aplicación no ejecutará DDL
+al arrancar. Los `down` destructivos no se usarán como rollback automático:
+cada cambio declarará compatibilidad, restauración o migración compensatoria.
+
+Los modelos OpenFGA no forman parte de Goose. Se validan, empaquetan y firman
+como artefactos OCI inmutables; su `authorization_model_id` sólo se promueve en
+OpenBao después de checks de aceptación y conserva el ID previo para rollback.
 
 ### 4.3 Base de datos
 

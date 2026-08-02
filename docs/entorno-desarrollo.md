@@ -22,7 +22,7 @@ aplicación:
 | Backend | Go 1.26 | Core, gateways, workers y servicios de red |
 | IA y visión | Python 3.12 + uv | Entornos reproducibles y compatibilidad ML |
 | Frontend | Node.js 24 LTS + pnpm | Angular y herramientas TypeScript |
-| Contratos | Protobuf, Buf, sqlc | Eventos, APIs técnicas y acceso SQL tipado |
+| Contratos y datos | Protobuf, Buf, sqlc, Goose | Eventos, APIs técnicas, acceso SQL tipado y migraciones PostgreSQL |
 | Contenedores | Docker Desktop | Build y Kubernetes local |
 | Kubernetes | kubectl 1.34, Helm, Flux, Kustomize integrado | Cliente alineado con el clúster local 1.34 |
 | Secretos | OpenBao CLI, SOPS + age | Autoridad local y bootstrap cifrado |
@@ -61,6 +61,13 @@ esperada.
 - Las herramientas retiradas se eliminarán del `Brewfile` después de comprobar
   que ningún workflow las utiliza.
 
+Goose queda adoptado para migraciones PostgreSQL. La versión del host es una
+ayuda de desarrollo; el módulo Go y la imagen migradora fijarán su dependencia
+exacta. `sqlc` genera consultas tipadas, pero no aplica migraciones.
+
+Los modelos OpenFGA mantienen un ciclo separado mediante FGA CLI, artefactos
+OCI firmados y promoción de IDs en OpenBao.
+
 ## 5. Herramientas todavía no instaladas
 
 - Angular CLI: se añadirá localmente al crear el workspace Angular.
@@ -68,4 +75,3 @@ esperada.
   `pyproject.toml`.
 - Generador OpenAPI para Go: se fijará como tool del módulo Go; no se instalará
   un generador Java global.
-- Atlas o Goose: se instalará después de resolver la decisión de migraciones.
