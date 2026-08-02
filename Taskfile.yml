@@ -20,6 +20,7 @@ tasks:
   validate-static:
     desc: Valida el repositorio sin acceder a infraestructura
     cmds:
+      - fga model test --tests authorization/reefops.fga.yaml
       - ./.github/scripts/check-rf-coverage.sh
       - ./.github/scripts/check-codex-aids.sh
       - shellcheck .github/scripts/*.sh

@@ -1,4 +1,5 @@
 # Minimal toolset for repository validation on GitHub-hosted macOS runners.
+tap "openfga/tap"
 brew "python@3.12"
 brew "go-task"
 brew "kubernetes-cli@1.34", link: true
@@ -9,3 +10,4 @@ brew "shellcheck"
 brew "actionlint"
 brew "trivy"
 brew "gitleaks"
+brew "openfga/tap/fga"

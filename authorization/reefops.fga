@@ -1,0 +1,69 @@
+model
+  schema 1.1
+
+type user
+
+type service_account
+
+type organization
+  relations
+    define owner: [user]
+    define administrator: [user]
+    define member: [user]
+    # active_member is supplied as a contextual tuple for exactly one org.
+    define active_member: [user]
+    define belongs_to_active_org: member and active_member
+    define can_administer: (owner or administrator) and active_member
+
+type installation
+  relations
+    define organization: [organization]
+    define owner: [user]
+    define administrator: [user]
+    define caretaker: [user]
+    define technician: [user]
+    define observer: [user]
+    define workload_operator: [service_account]
+
+    define has_view_role: owner or administrator or caretaker or technician or observer
+    define has_operate_role: owner or administrator or caretaker or technician
+    define can_view: has_view_role and belongs_to_active_org from organization
+    define can_operate: has_operate_role and belongs_to_active_org from organization
+    define can_administer: (owner or administrator) and belongs_to_active_org from organization
+    define can_operate_as_workload: workload_operator
+
+type aquatic_system
+  relations
+    define installation: [installation]
+    define viewer: [user]
+    define operator: [user]
+    define can_view: viewer or operator or can_view from installation
+    define can_operate: operator or can_operate from installation
+    define can_administer: can_administer from installation
+
+type resource
+  relations
+    define parent: [aquatic_system]
+    # This tuple exists only while the resource opts into parent visibility.
+    define inherits_view_from: [aquatic_system]
+    define viewer: [user]
+    define editor: [user]
+    define can_view: viewer or editor or can_view from inherits_view_from
+    define can_edit: editor
+
+type share_link
+
+type shared_view
+  relations
+    define source_system: [aquatic_system]
+    define owner: [user]
+    define viewer: [user, organization#member, share_link with non_expired]
+    define commenter: [user, share_link with non_expired]
+    define uploader: [user, share_link with non_expired]
+    define can_view: owner or viewer
+    define can_comment: owner or commenter
+    define can_upload: owner or uploader
+
+condition non_expired(current_time: timestamp, expires_at: timestamp) {
+  current_time < expires_at
+}

@@ -126,6 +126,14 @@ Los permisos iniciales serán aditivos y específicos, por ejemplo `can_view`,
 No existirá un permiso genérico `manage` que mezcle lectura con acciones
 físicas.
 
+El modelo ejecutable inicial está en
+[`authorization/reefops.fga`](../authorization/reefops.fga) y sus casos en
+[`authorization/reefops.fga.yaml`](../authorization/reefops.fga.yaml). La CLI
+oficial los ejecuta como parte de `task validate`. El fixture representa la
+organización activa como una tupla limitada al caso porque el formato de test
+de la CLI no acepta todavía contextual tuples; Authorizer deberá enviarla como
+contextual tuple y nunca persistirla.
+
 ### 6.1 Herencia restringible
 
 RF-072 permite heredar la visibilidad del sistema y restringirla en un recurso
