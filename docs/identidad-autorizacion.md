@@ -72,6 +72,22 @@ Los endpoints de descubrimiento, autorización, token y login que necesite
 ZITADEL tendrán rutas explícitas. Su consola administrativa y OpenFGA no tendrán
 una ruta genérica ni pública.
 
+### 4.1 Contrato ext_authz inicial
+
+La integración usa exclusivamente Envoy `ext_authz` v3 por gRPC. La metadata
+tipada de cada ruta aporta un `route_id` estable; no aporta libremente acción,
+tipo ni ID de recurso. Authorizer mantiene una allowlist versionada que, para
+cada `route_id`, fija método, plantilla, acción OpenFGA, tipo de objeto y regla
+de extracción del identificador. Método, ruta o metadata desconocidos se
+deniegan.
+
+El primer corte sólo habilita una ruta sintética de aceptación. Ninguna ruta de
+dominio se conectará hasta que la respuesta permitida incluya un
+`ActorContext` Ed25519 firmado, con audiencia y entorno fijados, vida máxima de
+30 segundos, `decision_id`, `correlation_id`, sujeto, organización activa,
+acción, recurso y modelo OpenFGA. Envoy eliminará cualquier contexto o cabecera
+de actor entrante antes de invocar Authorizer.
+
 ## 5. Organización activa y sujeto
 
 ZITADEL administra el contenedor IAM usado para login y delegación. Identity de
