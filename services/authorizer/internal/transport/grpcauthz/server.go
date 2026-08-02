@@ -17,11 +17,9 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/protobuf/types/known/structpb"
 )
 
-const authNamespace = "reefops.authentication"
-const routeNamespace = "reefops.authorization"
+const routeIDExtension = "reefops.authorization.route_id"
 
 type Authorizer interface {
 	Authorize(context.Context, authorization.Input) authorization.Result
@@ -100,23 +98,21 @@ func extract(req *authv3.CheckRequest) authorization.Input {
 	if in.CorrelationID == "" {
 		in.CorrelationID = newUUID()
 	}
-	routeMetadata := attrs.GetRouteMetadataContext().GetFilterMetadata()
-	identityMetadata := attrs.GetMetadataContext().GetFilterMetadata()
-	if routeMetadata[authNamespace] != nil || identityMetadata[routeNamespace] != nil {
-		in.Invalid = true
+	extensions := attrs.GetContextExtensions()
+	allowed := map[string]bool{routeIDExtension: true, "reefops.authentication.subject_id": true, "reefops.authentication.actor_id": true, "reefops.authentication.delegator_id": true, "reefops.authentication.credential_id_sha256": true, "reefops.authentication.issuer": true, "reefops.authentication.audience": true, "reefops.authentication.active_organization_id": true}
+	for key := range extensions {
+		if strings.HasPrefix(key, "reefops.") && !allowed[key] {
+			in.Invalid = true
+		}
 	}
-	routeValues, bad := readFields(routeMetadata[routeNamespace], map[string]bool{"route_id": true})
-	in.Invalid = in.Invalid || bad
-	in.RouteID = routeValues["route_id"]
-	identityValues, bad := readFields(identityMetadata[authNamespace], map[string]bool{"subject_id": true, "actor_id": true, "delegator_id": true, "credential_id_sha256": true, "issuer": true, "audience": true, "active_organization_id": true})
-	in.IdentityMalformed = bad
-	in.SubjectID = identityValues["subject_id"]
-	in.ActorID = identityValues["actor_id"]
-	in.DelegatorID = identityValues["delegator_id"]
-	in.CredentialIDSHA256 = identityValues["credential_id_sha256"]
-	in.Issuer = identityValues["issuer"]
-	in.Audience = identityValues["audience"]
-	in.OrganizationID = identityValues["active_organization_id"]
+	in.RouteID = extensions[routeIDExtension]
+	in.SubjectID = extensions["reefops.authentication.subject_id"]
+	in.ActorID = extensions["reefops.authentication.actor_id"]
+	in.DelegatorID = extensions["reefops.authentication.delegator_id"]
+	in.CredentialIDSHA256 = extensions["reefops.authentication.credential_id_sha256"]
+	in.Issuer = extensions["reefops.authentication.issuer"]
+	in.Audience = extensions["reefops.authentication.audience"]
+	in.OrganizationID = extensions["reefops.authentication.active_organization_id"]
 	return in
 }
 func requiredUUID(v string) (string, bool) {
@@ -132,24 +128,4 @@ func newUUID() string {
 		return uuid.NewString()
 	}
 	return id.String()
-}
-func readFields(s *structpb.Struct, allowed map[string]bool) (map[string]string, bool) {
-	result := map[string]string{}
-	if s == nil {
-		return result, false
-	}
-	bad := false
-	for key, value := range s.GetFields() {
-		if !allowed[key] {
-			bad = true
-			continue
-		}
-		typed, ok := value.GetKind().(*structpb.Value_StringValue)
-		if !ok {
-			bad = true
-			continue
-		}
-		result[key] = typed.StringValue
-	}
-	return result, bad
 }

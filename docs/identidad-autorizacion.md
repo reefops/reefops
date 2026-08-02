@@ -98,8 +98,11 @@ La ruta inicial tiene este contrato compilado, no configurable por el cliente:
 | Check OpenFGA | `user:{subject_id} can_view resource:{resource_id}` |
 | Tupla contextual | `user:{subject_id} active_member organization:{active_organization_id}` |
 
-`route_id` se lee de metadata confiable `reefops.authorization`; sujeto,
-actor, emisor, audiencia y organización activa de `reefops.authentication`.
+`route_id` se lee de `attributes.context_extensions` con la clave cerrada
+`reefops.authorization.route_id`; sujeto, actor, emisor, audiencia y
+organización activa usan claves `reefops.authentication.*` del mismo mapa.
+Envoy Gateway construye estas extensiones desde la `SecurityPolicy`; no se
+aceptan como cabeceras del cliente ni como metadata dinámica arbitraria.
 Sólo request, correlation, causation, intento y número de intento viajan como
 cabeceras internas regeneradas por Envoy. Un campo ausente, desconocido,
 duplicado o malformado deniega antes de consultar OpenFGA.
