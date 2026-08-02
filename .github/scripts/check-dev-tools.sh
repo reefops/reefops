@@ -7,7 +7,7 @@ export PATH="${brew_prefix}/opt/node@24/bin:${brew_prefix}/opt/kubernetes-cli@1.
 missing=0
 for tool in go python3.12 uv node pnpm golangci-lint gofumpt protoc buf sqlc \
   kubectl helm flux sops age bao task jq yq kubeconform shellcheck pre-commit ffmpeg \
-  gh actionlint cosign syft trivy oras rg; do
+  gh actionlint cosign syft trivy oras rg fga; do
   if ! command -v "${tool}" >/dev/null 2>&1; then
     echo "Falta la herramienta de desarrollo: ${tool}" >&2
     missing=1
@@ -44,6 +44,7 @@ golangci-lint --version | head -n 1
 protoc --version
 buf --version
 sqlc version
+fga version
 kubectl version --client
 helm version --short
 flux version --client

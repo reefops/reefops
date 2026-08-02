@@ -1,4 +1,5 @@
 tap "fluxcd/tap"
+tap "openfga/tap"
 
 # Language toolchains
 brew "go"
@@ -13,6 +14,7 @@ brew "gofumpt"
 brew "protobuf"
 brew "buf"
 brew "sqlc"
+brew "openfga/tap/fga"
 
 # Kubernetes and GitOps
 brew "kubernetes-cli@1.34", link: true

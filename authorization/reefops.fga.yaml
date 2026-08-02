@@ -1,0 +1,108 @@
+name: ReefOps authorization contract
+model_file: ./reefops.fga
+
+tests:
+  - name: active organization prevents confused deputy access
+    tuples:
+      - user: user:alice
+        relation: member
+        object: organization:org-a
+      - user: user:alice
+        relation: member
+        object: organization:org-b
+      - user: organization:org-a
+        relation: organization
+        object: installation:installation-a
+      - user: organization:org-b
+        relation: organization
+        object: installation:installation-b
+      - user: user:alice
+        relation: caretaker
+        object: installation:installation-a
+      - user: user:alice
+        relation: caretaker
+        object: installation:installation-b
+      # Represents the contextual tuple supplied for this request in production.
+      - user: user:alice
+        relation: active_member
+        object: organization:org-a
+    check:
+      - user: user:alice
+        object: installation:installation-a
+        assertions:
+          can_view: true
+          can_operate: true
+      - user: user:alice
+        object: installation:installation-b
+        assertions:
+          can_view: false
+          can_operate: false
+
+  - name: installation access is inherited by system and opted-in resource
+    tuples:
+      - user: user:alice
+        relation: member
+        object: organization:org-a
+      - user: organization:org-a
+        relation: organization
+        object: installation:installation-a
+      - user: user:alice
+        relation: observer
+        object: installation:installation-a
+      - user: installation:installation-a
+        relation: installation
+        object: aquatic_system:reef-a
+      - user: aquatic_system:reef-a
+        relation: parent
+        object: resource:measurement-private
+      - user: aquatic_system:reef-a
+        relation: inherits_view_from
+        object: resource:measurement-inherited
+      # Represents the contextual tuple supplied for this request in production.
+      - user: user:alice
+        relation: active_member
+        object: organization:org-a
+    check:
+      - user: user:alice
+        object: aquatic_system:reef-a
+        assertions:
+          can_view: true
+          can_operate: false
+      - user: user:alice
+        object: resource:measurement-inherited
+        assertions:
+          can_view: true
+      - user: user:alice
+        object: resource:measurement-private
+        assertions:
+          can_view: false
+
+  - name: share link expires and a missing tuple is immediately revoked
+    tuples:
+      - user: share_link:valid-link
+        relation: viewer
+        object: shared_view:vet-summary
+        condition:
+          name: non_expired
+          context:
+            expires_at: "2026-08-03T00:00:00Z"
+    check:
+      - user: share_link:valid-link
+        object: shared_view:vet-summary
+        context:
+          current_time: "2026-08-02T20:00:00Z"
+        assertions:
+          can_view: true
+          can_comment: false
+      - user: share_link:valid-link
+        object: shared_view:vet-summary
+        context:
+          current_time: "2026-08-03T00:00:01Z"
+        assertions:
+          can_view: false
+      - user: share_link:revoked-link
+        object: shared_view:vet-summary
+        context:
+          current_time: "2026-08-02T20:00:00Z"
+        assertions:
+          can_view: false
