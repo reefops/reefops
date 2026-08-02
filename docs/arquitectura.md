@@ -347,6 +347,9 @@ externo necesario y su proyección funcional.
 Identity en ReefOps no será propietario de credenciales. Consumirá eventos de
 provisión y mantendrá la relación entre sujeto autenticado y actor de negocio.
 
+La comparación y los contratos que fijan esta elección están en
+[Identidad y autorización](identidad-autorizacion.md).
+
 ### AD-015. Autorización gestionada con OpenFGA
 
 OpenFGA resolverá la autorización fina:
@@ -366,6 +369,11 @@ mediante escrituras ocultas desde cualquier dominio.
 El PDP responde si una acción está permitida; el dominio sigue siendo
 responsable de sus invariantes. Una decisión permitida no obliga a aceptar un
 comando inválido.
+
+OpenFGA no será propietario de contraseñas de enlace, contadores de acceso,
+redacción de vistas ni snapshots públicos. Esas invariantes pertenecen a
+Sharing y Publication según el contrato de
+[Identidad y autorización](identidad-autorizacion.md).
 
 ### AD-016. Plataforma no equivale a dominio
 
