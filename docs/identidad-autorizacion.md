@@ -88,6 +88,75 @@ dominio se conectará hasta que la respuesta permitida incluya un
 acción, recurso y modelo OpenFGA. Envoy eliminará cualquier contexto o cabecera
 de actor entrante antes de invocar Authorizer.
 
+La ruta inicial tiene este contrato compilado, no configurable por el cliente:
+
+| Campo | Valor |
+|---|---|
+| `route_id` | `acceptance.synthetic.resource.view` |
+| Método y plantilla | `GET /_acceptance/authorization/resources/{resource_id}` |
+| Acción ReefOps | `resource:view` |
+| Check OpenFGA | `user:{subject_id} can_view resource:{resource_id}` |
+| Tupla contextual | `user:{subject_id} active_member organization:{active_organization_id}` |
+
+`route_id` se lee de `attributes.context_extensions` con la clave cerrada
+`reefops.authorization.route_id`; sujeto, actor, emisor, audiencia y
+organización activa usan claves `reefops.authentication.*` del mismo mapa.
+Envoy Gateway construye estas extensiones desde la `SecurityPolicy`; no se
+aceptan como cabeceras del cliente ni como metadata dinámica arbitraria.
+Sólo request, correlation, causation, intento y número de intento viajan como
+cabeceras internas regeneradas por Envoy. Un campo ausente, desconocido,
+duplicado o malformado deniega antes de consultar OpenFGA.
+
+El Authorizer responde mediante `envoy.service.auth.v3.Authorization/Check`.
+Un permiso devuelve exclusivamente `x-reefops-actor-context`,
+`x-reefops-authorization-decision-id` y el `x-correlation-id` normalizado. El
+deny devuelve sólo los dos identificadores de decisión y correlación, nunca el
+contexto de actor. Este contexto usa JWS compacto EdDSA con
+`typ=reefops-actor-context+jwt`; incluye
+`jti`, `kid`, entorno, audiencia interna, actor, sujeto, organización, acción,
+recurso, decisión, correlación, store y modelo. Se firma primero, se persiste su
+hash en auditoría y sólo después se responde ALLOW. Si firma o auditoría fallan,
+se deniega sin contexto.
+
+Los motivos iniciales son códigos cerrados: `unknown_route`, `method_mismatch`,
+`malformed_path`, `missing_identity`, `invalid_identity`,
+`invalid_request_context`, `openfga_denied`, `openfga_unavailable`,
+`signing_failed` y `audit_unavailable`. Ningún mensaje de OpenFGA, SQL, token o
+secreto se copia a la auditoría ni a la respuesta.
+
+Esta primera entrega no retransmite un mismo intento. Una repetición con el
+mismo `attempt_id` falla cerrada; un retry explícito debe conservar
+`request_id` y `correlation_id`, incrementar `attempt_number` y generar un
+`attempt_id` nuevo. El binario no se desplegará ni expondrá hasta que
+`reefops-platform` aporte identidad Linkerd, entrada exclusiva desde Gateway,
+egress mínimo a DNS, OpenFGA y PostgreSQL, y Envoy quede cableado a `ext_authz`.
+
+### Operación, observabilidad y escala
+
+El proceso expone gRPC en `9002` y un puerto de administración HTTP separado en
+`9003`. Este último ofrece `/livez`, `/readyz` y `/metrics`; no se publica por
+Gateway. Readiness comprueba PostgreSQL y OpenFGA con un plazo acotado. Las
+métricas RED iniciales son `reefops_authorizer_checks_total` y
+`reefops_authorizer_check_duration_seconds`, limitadas a labels cerradas de
+resultado y motivo. Kubernetes aporta uso de CPU/memoria, disponibilidad,
+restarts y estado de HPA; Envoy aporta tráfico, latencia, códigos y salud del
+cluster ext-auth. No se usan IDs de usuario, organización, recurso, decisión o
+correlación como labels.
+
+Cada `Check` crea una traza OpenTelemetry y propaga el contexto recibido por
+gRPC. Los spans de OpenFGA, firma y auditoría conservan sólo atributos de baja
+cardinalidad; los logs JSON a stdout incluyen `trace_id`, `span_id`,
+`correlation_id`, `decision_id`, resultado y motivo, pero nunca tokens,
+ActorContext, tuples completos ni DSN. La plataforma recolecta métricas con
+Prometheus y exporta trazas por OTLP dentro del clúster; la indisponibilidad del
+backend de telemetría no altera la decisión de autorización ni la auditoría.
+
+El Authorizer es stateless salvo por sus dependencias externas, admite varias
+réplicas y no usa afinidad de sesión. Cada réplica limita su pool PostgreSQL y
+peticiones concurrentes; Kubernetes puede escalarla horizontalmente entre una
+y cinco réplicas usando CPU, con recursos, PDB y distribución entre nodos. El
+presupuesto total de conexiones debe revisarse antes de elevar esos límites.
+
 ## 5. Organización activa y sujeto
 
 ZITADEL administra el contenedor IAM usado para login y delegación. Identity de

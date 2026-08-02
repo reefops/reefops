@@ -1,0 +1,63 @@
+package grpcauthz
+
+import (
+	"context"
+	"testing"
+
+	authv3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
+	"github.com/google/uuid"
+	"github.com/reefops/reefops/services/authorizer/internal/authorization"
+	"google.golang.org/grpc/codes"
+)
+
+type fakeAuthorizer struct {
+	input  authorization.Input
+	result authorization.Result
+}
+
+func (f *fakeAuthorizer) Authorize(_ context.Context, in authorization.Input) authorization.Result {
+	f.input = in
+	return f.result
+}
+
+func TestCheckExtractsTrustedMetadataAndReturnsAllowHeaders(t *testing.T) {
+	requestID := uuid.NewString()
+	organizationID := uuid.NewString()
+	correlationID := uuid.NewString()
+	fake := &fakeAuthorizer{result: authorization.Result{Allowed: true, ActorContext: "signed", DecisionID: uuid.NewString(), CorrelationID: correlationID}}
+	server := New(fake)
+	response, err := server.Check(context.Background(), &authv3.CheckRequest{Attributes: &authv3.AttributeContext{
+		Request:           &authv3.AttributeContext_Request{Http: &authv3.AttributeContext_HttpRequest{Id: requestID, Method: "GET", Path: "/_acceptance/authorization/resources/r1", Headers: map[string]string{"x-correlation-id": correlationID}}},
+		ContextExtensions: map[string]string{routeIDExtension: "acceptance.synthetic.resource.view", "reefops.authentication.subject_id": "s", "reefops.authentication.actor_id": "a", "reefops.authentication.issuer": "i", "reefops.authentication.audience": "aud", "reefops.authentication.active_organization_id": organizationID},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if codes.Code(response.GetStatus().GetCode()) != codes.OK || response.GetOkResponse() == nil {
+		t.Fatalf("unexpected response: %#v", response)
+	}
+	if fake.input.Invalid || fake.input.RouteID == "" || fake.input.OrganizationID != organizationID {
+		t.Fatalf("unexpected extracted input: %#v", fake.input)
+	}
+	if len(response.GetOkResponse().GetHeaders()) != 3 {
+		t.Fatalf("unexpected headers: %#v", response.GetOkResponse().GetHeaders())
+	}
+}
+
+func TestCheckNeverLeaksActorContextOnDeny(t *testing.T) {
+	fake := &fakeAuthorizer{result: authorization.Result{ReasonCode: authorization.ReasonAuditFailure}}
+	response, err := New(fake).Check(context.Background(), &authv3.CheckRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if codes.Code(response.GetStatus().GetCode()) != codes.PermissionDenied || response.GetDeniedResponse() == nil || response.GetOkResponse() != nil {
+		t.Fatalf("unexpected response: %#v", response)
+	}
+}
+func TestExtractRejectsUnknownTrustedExtension(t *testing.T) {
+	requestID := uuid.NewString()
+	in := extract(&authv3.CheckRequest{Attributes: &authv3.AttributeContext{Request: &authv3.AttributeContext_Request{Http: &authv3.AttributeContext_HttpRequest{Id: requestID}}, ContextExtensions: map[string]string{"reefops.unknown": "value"}}})
+	if !in.Invalid {
+		t.Fatalf("malformed metadata accepted: %#v", in)
+	}
+}
