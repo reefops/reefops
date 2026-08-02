@@ -21,6 +21,10 @@ tasks:
     desc: Valida el repositorio sin acceder a infraestructura
     cmds:
       - fga model test --tests authorization/reefops.fga.yaml
+      - goose -dir services/authorizer/internal/migrations/files validate
+      - cd services/authorizer && sqlc diff
+      - cd services/authorizer && go test ./...
+      - cd services/authorizer && go vet ./...
       - ./.github/scripts/check-rf-coverage.sh
       - ./.github/scripts/check-codex-aids.sh
       - shellcheck .github/scripts/*.sh

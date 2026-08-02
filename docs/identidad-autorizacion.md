@@ -198,6 +198,21 @@ token opaco después de validar su hash.
   valor activo en OpenBao no sustituye esa historia.
 - Un rollback cambia explícitamente el modelo activo a un ID anterior ya
   probado; no elimina modelos, stores, relaciones ni evidencia histórica.
+- Goose gestiona únicamente el esquema PostgreSQL de auditoría del Authorizer;
+  no crea stores, modelos ni tuples OpenFGA. El migrador usa una identidad DDL
+  separada y el runtime sólo recibe `INSERT/SELECT` sobre la auditoría.
+- El primer esquema de auditoría exige `actor_id` y organización activa para un
+  `allow`, porque el único corte permitido es autenticado. Una denegación temprana
+  conserva su `decision_stage` y deja nulos los datos que todavía no conoce, sin
+  inventar actores, organizaciones ni IDs OpenFGA. Los principales futuros se
+  distinguen como humano, service account o enlace compartido.
+- Cada append lleva un hash SHA-256 del payload canónico. Repetir el mismo
+  `decision_id` sólo devuelve la evidencia existente cuando entorno y hash
+  coinciden; una reutilización conflictiva falla cerrada. Las consultas incluyen
+  siempre `environment_id` y la reconstrucción por correlación queda ordenada.
+- Un `allow` no es válido sin el `ActorContext` final: se conservan `jti`, `kid`,
+  audiencia interna, emisión, caducidad y hash canónico firmado. Las denegaciones
+  no aparentan haber emitido esa credencial.
 - Cada modelo será inmutable, revisado y probado antes de activarse.
 - Los dominios no escribirán OpenFGA directamente.
 - Consumidores idempotentes proyectarán eventos de membresía, propiedad,

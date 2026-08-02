@@ -161,6 +161,13 @@ Pull request en reefops
   → reconciliación y health checks
 ```
 
+La primera imagen de producto es
+`ghcr.io/reefops/reefops-authorizer-migrator`. El workflow sólo la publica desde
+`main` después de la validación del repositorio y una aceptación sobre
+PostgreSQL real; usa una etiqueta derivada del commit y entrega SBOM, provenance
+y attestation asociados al digest multi-arquitectura. GitOps consumirá el
+digest, no la etiqueta.
+
 No habrá despliegue directo desde GitHub Actions al Kubernetes local. El
 clúster iniciará todas las conexiones hacia GitHub/GHCR mediante polling y
 descarga. No habrá webhook, túnel ni runner hospedado que acepte conexiones

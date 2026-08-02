@@ -14,6 +14,7 @@ brew "gofumpt"
 brew "protobuf"
 brew "buf"
 brew "sqlc"
+brew "goose"
 brew "openfga/tap/fga"
 
 # Kubernetes and GitOps

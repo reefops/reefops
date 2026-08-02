@@ -9,6 +9,10 @@ on:
 
 permissions: {}
 
+env:
+  REGISTRY: ghcr.io
+  AUTHORIZER_MIGRATOR_IMAGE: reefops/reefops-authorizer-migrator
+
 concurrency:
   group: validate-${{ github.ref }}
   cancel-in-progress: true
@@ -24,8 +28,162 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: services/authorizer/go.mod
+          cache-dependency-path: services/authorizer/go.sum
+
       - name: Install validation tools
-        run: brew bundle --file Brewfile.ci --no-upgrade
+        run: |
+          brew trust --tap openfga/tap
+          brew bundle --file Brewfile.ci --no-upgrade
 
       - name: Validate repository
         run: task validate-static
+
+  authorizer-migration-acceptance:
+    name: Authorizer migration acceptance
+    needs: repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: postgres:17-alpine@sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 15
+        ports:
+          - 5432/tcp
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: services/authorizer/go.mod
+          cache-dependency-path: services/authorizer/go.sum
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+
+      - name: Provision acceptance roles and database
+        env:
+          PGPORT: ${{ job.services.postgres.ports['5432'] }}
+        run: |
+          psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -U postgres <<'SQL'
+          CREATE ROLE reefops_authorizer_owner NOLOGIN NOSUPERUSER;
+          CREATE ROLE reefops_authorizer_migrator LOGIN NOSUPERUSER
+            IN ROLE reefops_authorizer_owner;
+          CREATE ROLE reefops_authorizer_runtime LOGIN NOSUPERUSER;
+          CREATE DATABASE reefops_authorizer_audit OWNER reefops_authorizer_owner;
+          SQL
+
+      - name: Apply migrations twice
+        working-directory: services/authorizer
+        env:
+          PGPORT: ${{ job.services.postgres.ports['5432'] }}
+          REEFOPS_AUTHORIZER_MIGRATOR_DATABASE_URL: postgresql://reefops_authorizer_migrator@127.0.0.1:${{ job.services.postgres.ports['5432'] }}/reefops_authorizer_audit?sslmode=disable
+        run: |
+          go run ./cmd/migrate
+          go run ./cmd/migrate
+
+      - name: Verify early denial and append-only permissions
+        env:
+          PGPORT: ${{ job.services.postgres.ports['5432'] }}
+        run: |
+          psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -U reefops_authorizer_runtime \
+            -d reefops_authorizer_audit <<'SQL'
+          INSERT INTO authorizer_audit.authorization_decisions (
+            decision_id, environment_id, request_id, attempt_id, attempt_number,
+            decision_payload_sha256, correlation_id, correlation_source,
+            causation_id, decision_stage, result, reason_code
+          ) VALUES (
+            '018f0000-0000-7000-8000-000000000001', 'acceptance',
+            '018f0000-0000-7000-8000-000000000002',
+            '018f0000-0000-7000-8000-000000000003', 1,
+            'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+            '018f0000-0000-7000-8000-000000000004', 'generated',
+            '018f0000-0000-7000-8000-000000000005', 'identity', 'deny',
+            'missing_identity'
+          );
+          SQL
+          if psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -U reefops_authorizer_runtime \
+            -d reefops_authorizer_audit -c \
+            "UPDATE authorizer_audit.authorization_decisions SET reason_code = 'changed'"; then
+            echo "runtime update unexpectedly succeeded" >&2
+            exit 1
+          fi
+          if psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -U reefops_authorizer_runtime \
+            -d reefops_authorizer_audit -c \
+            "DROP TABLE authorizer_audit.authorization_decisions"; then
+            echo "runtime drop unexpectedly succeeded" >&2
+            exit 1
+          fi
+
+      - name: Verify idempotency and environment isolation
+        working-directory: services/authorizer
+        env:
+          REEFOPS_AUTHORIZER_AUDIT_TEST_DATABASE_URL: postgresql://reefops_authorizer_runtime@127.0.0.1:${{ job.services.postgres.ports['5432'] }}/reefops_authorizer_audit?sslmode=disable
+        run: go test ./internal/audit/postgresql -run TestRecordAuthorizationDecision -count=1
+
+  publish-authorizer-migrator:
+    name: Publish Authorizer migrator
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: authorizer-migration-acceptance
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      attestations: write
+      contents: read
+      id-token: write
+      packages: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Derive immutable tag and labels
+        id: metadata
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.AUTHORIZER_MIGRATOR_IMAGE }}
+          tags: type=sha,format=long
+
+      - name: Build and publish image
+        id: build
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
+        with:
+          context: services/authorizer
+          file: services/authorizer/Dockerfile.migrator
+          platforms: linux/amd64,linux/arm64
+          push: true
+          sbom: true
+          provenance: mode=max
+          tags: ${{ steps.metadata.outputs.tags }}
+          labels: ${{ steps.metadata.outputs.labels }}
+
+      - name: Attest published digest
+        uses: actions/attest-build-provenance@43d14bc2b83dec42d39ecae14e916627a18bb661 # v3
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.AUTHORIZER_MIGRATOR_IMAGE }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
