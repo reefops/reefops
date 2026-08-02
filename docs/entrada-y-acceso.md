@@ -211,6 +211,13 @@ La primera entrada protegida queda limitada al host operador:
 10. `correlation_id` debe ser UUID, se genera si falta, y no hay retries
     automáticos para métodos mutadores.
 
+La primera prueba de la segunda puerta usa exclusivamente
+`acceptance.synthetic.resource.view` y no publica un caso de uso de dominio. La
+metadata confiable aporta sólo el identificador de contrato y los claims ya
+validados; acción, relación, plantilla y extracción del recurso se resuelven en
+la allowlist compilada del Authorizer. La respuesta ALLOW no se emite hasta que
+el Check OpenFGA, la firma Ed25519 y el append de auditoría han terminado.
+
 ZITADEL, OpenFGA y sus consolas no reciben rutas administrativas genéricas. La
 ruta de identidad expone únicamente lo requerido por OIDC y login. OpenFGA no
 tiene ruta Gateway.

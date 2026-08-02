@@ -88,6 +88,46 @@ dominio se conectará hasta que la respuesta permitida incluya un
 acción, recurso y modelo OpenFGA. Envoy eliminará cualquier contexto o cabecera
 de actor entrante antes de invocar Authorizer.
 
+La ruta inicial tiene este contrato compilado, no configurable por el cliente:
+
+| Campo | Valor |
+|---|---|
+| `route_id` | `acceptance.synthetic.resource.view` |
+| Método y plantilla | `GET /_acceptance/authorization/resources/{resource_id}` |
+| Acción ReefOps | `resource:view` |
+| Check OpenFGA | `user:{subject_id} can_view resource:{resource_id}` |
+| Tupla contextual | `user:{subject_id} active_member organization:{active_organization_id}` |
+
+`route_id` se lee de metadata confiable `reefops.authorization`; sujeto,
+actor, emisor, audiencia y organización activa de `reefops.authentication`.
+Sólo request, correlation, causation, intento y número de intento viajan como
+cabeceras internas regeneradas por Envoy. Un campo ausente, desconocido,
+duplicado o malformado deniega antes de consultar OpenFGA.
+
+El Authorizer responde mediante `envoy.service.auth.v3.Authorization/Check`.
+Un permiso devuelve exclusivamente `x-reefops-actor-context`,
+`x-reefops-authorization-decision-id` y el `x-correlation-id` normalizado. El
+deny devuelve sólo los dos identificadores de decisión y correlación, nunca el
+contexto de actor. Este contexto usa JWS compacto EdDSA con
+`typ=reefops-actor-context+jwt`; incluye
+`jti`, `kid`, entorno, audiencia interna, actor, sujeto, organización, acción,
+recurso, decisión, correlación, store y modelo. Se firma primero, se persiste su
+hash en auditoría y sólo después se responde ALLOW. Si firma o auditoría fallan,
+se deniega sin contexto.
+
+Los motivos iniciales son códigos cerrados: `unknown_route`, `method_mismatch`,
+`malformed_path`, `missing_identity`, `invalid_identity`,
+`invalid_request_context`, `openfga_denied`, `openfga_unavailable`,
+`signing_failed` y `audit_unavailable`. Ningún mensaje de OpenFGA, SQL, token o
+secreto se copia a la auditoría ni a la respuesta.
+
+Esta primera entrega no retransmite un mismo intento. Una repetición con el
+mismo `attempt_id` falla cerrada; un retry explícito debe conservar
+`request_id` y `correlation_id`, incrementar `attempt_number` y generar un
+`attempt_id` nuevo. El binario no se desplegará ni expondrá hasta que
+`reefops-platform` aporte identidad Linkerd, entrada exclusiva desde Gateway,
+egress mínimo a DNS, OpenFGA y PostgreSQL, y Envoy quede cableado a `ext_authz`.
+
 ## 5. Organización activa y sujeto
 
 ZITADEL administra el contenedor IAM usado para login y delegación. Identity de
