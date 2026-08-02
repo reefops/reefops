@@ -35,7 +35,9 @@ jobs:
           cache-dependency-path: services/authorizer/go.sum
 
       - name: Install validation tools
-        run: brew bundle --file Brewfile.ci --no-upgrade
+        run: |
+          brew trust --tap openfga/tap
+          brew bundle --file Brewfile.ci --no-upgrade
 
       - name: Validate repository
         run: task validate-static
