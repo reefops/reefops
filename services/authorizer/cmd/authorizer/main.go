@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -15,12 +16,17 @@ import (
 	"github.com/reefops/reefops/services/authorizer/internal/actorcontext"
 	auditdb "github.com/reefops/reefops/services/authorizer/internal/audit/postgresql"
 	"github.com/reefops/reefops/services/authorizer/internal/authorization"
+	"github.com/reefops/reefops/services/authorizer/internal/observability"
 	"github.com/reefops/reefops/services/authorizer/internal/openfga"
 	"github.com/reefops/reefops/services/authorizer/internal/transport/grpcauthz"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/health"
+	grpc_health_v1 "google.golang.org/grpc/health/grpc_health_v1"
 )
 
 func main() {
+	observability.ConfigureLogger()
 	if err := run(); err != nil {
 		slog.Error("authorizer stopped", "error", err)
 		os.Exit(1)
@@ -30,10 +36,22 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 	listenAddress := envDefault("AUTHORIZER_GRPC_LISTEN_ADDRESS", ":9002")
+	managementAddress := envDefault("AUTHORIZER_MANAGEMENT_LISTEN_ADDRESS", ":9003")
 	env, err := requiredEnvironment("OPENFGA_API_URL", "OPENFGA_STORE_ID", "OPENFGA_AUTHORIZATION_MODEL_ID", "OPENFGA_API_TOKEN", "OPENFGA_ENVIRONMENT_ID", "OPENFGA_MODEL_SHA256", "AUDIT_DATABASE_URL", "ACTOR_CONTEXT_PRIVATE_KEY_PKCS8_PEM_B64", "ACTOR_CONTEXT_PUBLIC_KEY_PEM_B64", "ACTOR_CONTEXT_ACTIVE_KID", "ACTOR_CONTEXT_ALGORITHM")
 	if err != nil {
 		return err
 	}
+	shutdownTracing, err := observability.SetupTracing(ctx, os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"), env["OPENFGA_ENVIRONMENT_ID"], envDefault("REEFOPS_VERSION", "development"))
+	if err != nil {
+		return err
+	}
+	defer func() {
+		shutdownContext, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := shutdownTracing(shutdownContext); err != nil {
+			slog.Error("shutdown tracing", "error", err)
+		}
+	}()
 	openFGAClient, err := openfga.New(env["OPENFGA_API_URL"], env["OPENFGA_STORE_ID"], env["OPENFGA_AUTHORIZATION_MODEL_ID"], env["OPENFGA_API_TOKEN"], 2*time.Second)
 	if err != nil {
 		return err
@@ -65,14 +83,31 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("listen: %w", err)
 	}
-	server := grpc.NewServer()
-	authv3.RegisterAuthorizationServer(server, grpcauthz.New(service))
+	metrics, registry := observability.NewMetrics()
+	server := grpc.NewServer(grpc.StatsHandler(otelgrpc.NewServerHandler()))
+	authv3.RegisterAuthorizationServer(server, grpcauthz.New(service, metrics))
+	healthServer := health.NewServer()
+	healthServer.SetServingStatus("envoy.service.auth.v3.Authorization", grpc_health_v1.HealthCheckResponse_SERVING)
+	grpc_health_v1.RegisterHealthServer(server, healthServer)
+	managementServer := &http.Server{Addr: managementAddress, Handler: observability.Handler(registry, func(readinessContext context.Context) error {
+		if err := pool.Ping(readinessContext); err != nil {
+			return fmt.Errorf("audit database: %w", err)
+		}
+		return openFGAClient.Ready(readinessContext)
+	}), ReadHeaderTimeout: 2 * time.Second, IdleTimeout: 30 * time.Second}
 	errCh := make(chan error, 1)
 	go func() { errCh <- server.Serve(listener) }()
-	slog.Info("authorizer listening", "address", listenAddress)
+	go observability.ServeHTTP(managementServer, errCh)
+	slog.Info("authorizer listening", "grpc_address", listenAddress, "management_address", managementAddress)
 	select {
 	case <-ctx.Done():
+		healthServer.SetServingStatus("envoy.service.auth.v3.Authorization", grpc_health_v1.HealthCheckResponse_NOT_SERVING)
 		server.GracefulStop()
+		shutdownContext, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := managementServer.Shutdown(shutdownContext); err != nil {
+			return fmt.Errorf("shutdown management HTTP: %w", err)
+		}
 		return nil
 	case err := <-errCh:
 		return fmt.Errorf("serve gRPC: %w", err)

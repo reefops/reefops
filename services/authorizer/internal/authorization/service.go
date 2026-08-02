@@ -11,6 +11,10 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/reefops/reefops/services/authorizer/internal/contract"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Config struct{ EnvironmentID, StoreID, ModelID, ModelSHA256, ActorContextAudience string }
@@ -74,7 +78,13 @@ func (s *Service) Authorize(ctx context.Context, in Input) Result {
 	tuple := Tuple{User: d.OpenFGAUser, Relation: "active_member", Object: "organization:" + in.OrganizationID}
 	d.ContextualTuplesSHA256 = tupleDigest([]Tuple{tuple})
 	started := s.now()
-	allowed, err := s.checker.Check(ctx, Check{User: d.OpenFGAUser, Relation: d.OpenFGARelation, Object: d.OpenFGAObject, ContextualTuples: []Tuple{tuple}})
+	checkContext, checkSpan := otel.Tracer("reefops-authorizer").Start(ctx, "openfga.check")
+	allowed, err := s.checker.Check(checkContext, Check{User: d.OpenFGAUser, Relation: d.OpenFGARelation, Object: d.OpenFGAObject, ContextualTuples: []Tuple{tuple}})
+	checkSpan.SetAttributes(attribute.Bool("reefops.openfga.allowed", allowed))
+	if err != nil {
+		checkSpan.SetStatus(codes.Error, "unavailable")
+	}
+	checkSpan.End()
 	d.OpenFGALatency = s.now().Sub(started)
 	d.OpenFGAAttempts = 1
 	if err != nil {
@@ -84,7 +94,12 @@ func (s *Service) Authorize(ctx context.Context, in Input) Result {
 		return deny(ReasonOpenFGADenied, "openfga")
 	}
 	d.Stage = "actor_context"
+	_, signSpan := otel.Tracer("reefops-authorizer").Start(ctx, "actor_context.sign")
 	signed, err := s.signer.Sign(ActorContext{Audience: s.config.ActorContextAudience, EnvironmentID: s.config.EnvironmentID, ActorID: in.ActorID, SubjectID: in.SubjectID, DelegatorID: in.DelegatorID, OrganizationID: in.OrganizationID, Action: route.Action, ResourceType: route.ResourceType, ResourceID: route.ResourceID, DecisionID: d.ID, CorrelationID: in.CorrelationID, OpenFGAStoreID: s.config.StoreID, OpenFGAModelID: s.config.ModelID})
+	if err != nil {
+		signSpan.SetStatus(codes.Error, "signing failed")
+	}
+	signSpan.End()
 	if err != nil {
 		return deny(ReasonActorContextFailure, "actor_context")
 	}
@@ -107,7 +122,13 @@ func (s *Service) Authorize(ctx context.Context, in Input) Result {
 func (s *Service) record(requestContext context.Context, decision Decision) error {
 	auditContext, cancel := context.WithTimeout(context.WithoutCancel(requestContext), 2*time.Second)
 	defer cancel()
-	return s.auditor.Record(auditContext, decision)
+	auditContext, span := otel.Tracer("reefops-authorizer").Start(auditContext, "audit.persist", trace.WithAttributes(attribute.String("reefops.authorization.result", decision.Result)))
+	defer span.End()
+	err := s.auditor.Record(auditContext, decision)
+	if err != nil {
+		span.SetStatus(codes.Error, "persistence failed")
+	}
+	return err
 }
 
 func validInput(in Input) bool {

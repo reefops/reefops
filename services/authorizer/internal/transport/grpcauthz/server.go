@@ -2,14 +2,19 @@ package grpcauthz
 
 import (
 	"context"
+	"log/slog"
 	"strconv"
 	"strings"
+	"time"
 
 	corev3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	authv3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
 	typev3 "github.com/envoyproxy/go-control-plane/envoy/type/v3"
 	"github.com/google/uuid"
 	"github.com/reefops/reefops/services/authorizer/internal/authorization"
+	"github.com/reefops/reefops/services/authorizer/internal/observability"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -24,13 +29,32 @@ type Authorizer interface {
 type Server struct {
 	authv3.UnimplementedAuthorizationServer
 	authorizer Authorizer
+	metrics    *observability.Metrics
 }
 
-func New(authorizer Authorizer) *Server { return &Server{authorizer: authorizer} }
+func New(authorizer Authorizer, metrics ...*observability.Metrics) *Server {
+	s := &Server{authorizer: authorizer}
+	if len(metrics) > 0 {
+		s.metrics = metrics[0]
+	}
+	return s
+}
 
 func (s *Server) Check(ctx context.Context, req *authv3.CheckRequest) (*authv3.CheckResponse, error) {
+	started := time.Now()
 	in := extract(req)
 	result := s.authorizer.Authorize(ctx, in)
+	decisionResult := "deny"
+	if result.Allowed {
+		decisionResult = "allow"
+	}
+	if s.metrics != nil {
+		s.metrics.Observe(decisionResult, result.ReasonCode, time.Since(started))
+	}
+	span := trace.SpanFromContext(ctx)
+	span.SetAttributes(attribute.String("reefops.authorization.result", decisionResult), attribute.String("reefops.authorization.reason", result.ReasonCode))
+	spanContext := span.SpanContext()
+	slog.InfoContext(ctx, "authorization check completed", "result", decisionResult, "reason", result.ReasonCode, "decision_id", result.DecisionID, "correlation_id", result.CorrelationID, "trace_id", spanContext.TraceID().String(), "span_id", spanContext.SpanID().String(), "duration_ms", time.Since(started).Milliseconds())
 	if result.Allowed {
 		return &authv3.CheckResponse{Status: &status.Status{Code: int32(codes.OK)}, HttpResponse: &authv3.CheckResponse_OkResponse{OkResponse: &authv3.OkHttpResponse{Headers: []*corev3.HeaderValueOption{header("x-reefops-actor-context", result.ActorContext), header("x-reefops-authorization-decision-id", result.DecisionID), header("x-correlation-id", result.CorrelationID)}}}}, nil
 	}

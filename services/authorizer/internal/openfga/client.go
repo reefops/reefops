@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/reefops/reefops/services/authorizer/internal/authorization"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 type Client struct {
@@ -31,7 +32,7 @@ func New(endpoint, storeID, modelID, token string, timeout time.Duration) (*Clie
 	if timeout <= 0 {
 		return nil, errors.New("OpenFGA timeout must be positive")
 	}
-	return &Client{endpoint: strings.TrimRight(endpoint, "/"), storeID: storeID, modelID: modelID, token: token, http: &http.Client{Timeout: timeout}}, nil
+	return &Client{endpoint: strings.TrimRight(endpoint, "/"), storeID: storeID, modelID: modelID, token: token, http: &http.Client{Timeout: timeout, Transport: otelhttp.NewTransport(http.DefaultTransport)}}, nil
 }
 
 type tupleKey struct {
@@ -48,6 +49,24 @@ type checkRequest struct {
 }
 type checkResponse struct {
 	Allowed *bool `json:"allowed"`
+}
+
+func (c *Client) Ready(ctx context.Context) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.endpoint+"/healthz", nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("authorization", "Bearer "+c.token)
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return fmt.Errorf("OpenFGA readiness: %w", err)
+	}
+	defer resp.Body.Close()
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 4096))
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("OpenFGA readiness returned HTTP %d", resp.StatusCode)
+	}
+	return nil
 }
 
 func (c *Client) Check(ctx context.Context, check authorization.Check) (bool, error) {

@@ -128,6 +128,32 @@ mismo `attempt_id` falla cerrada; un retry explícito debe conservar
 `reefops-platform` aporte identidad Linkerd, entrada exclusiva desde Gateway,
 egress mínimo a DNS, OpenFGA y PostgreSQL, y Envoy quede cableado a `ext_authz`.
 
+### Operación, observabilidad y escala
+
+El proceso expone gRPC en `9002` y un puerto de administración HTTP separado en
+`9003`. Este último ofrece `/livez`, `/readyz` y `/metrics`; no se publica por
+Gateway. Readiness comprueba PostgreSQL y OpenFGA con un plazo acotado. Las
+métricas RED iniciales son `reefops_authorizer_checks_total` y
+`reefops_authorizer_check_duration_seconds`, limitadas a labels cerradas de
+resultado y motivo. Kubernetes aporta uso de CPU/memoria, disponibilidad,
+restarts y estado de HPA; Envoy aporta tráfico, latencia, códigos y salud del
+cluster ext-auth. No se usan IDs de usuario, organización, recurso, decisión o
+correlación como labels.
+
+Cada `Check` crea una traza OpenTelemetry y propaga el contexto recibido por
+gRPC. Los spans de OpenFGA, firma y auditoría conservan sólo atributos de baja
+cardinalidad; los logs JSON a stdout incluyen `trace_id`, `span_id`,
+`correlation_id`, `decision_id`, resultado y motivo, pero nunca tokens,
+ActorContext, tuples completos ni DSN. La plataforma recolecta métricas con
+Prometheus y exporta trazas por OTLP dentro del clúster; la indisponibilidad del
+backend de telemetría no altera la decisión de autorización ni la auditoría.
+
+El Authorizer es stateless salvo por sus dependencias externas, admite varias
+réplicas y no usa afinidad de sesión. Cada réplica limita su pool PostgreSQL y
+peticiones concurrentes; Kubernetes puede escalarla horizontalmente entre una
+y cinco réplicas usando CPU, con recursos, PDB y distribución entre nodos. El
+presupuesto total de conexiones debe revisarse antes de elevar esos límites.
+
 ## 5. Organización activa y sujeto
 
 ZITADEL administra el contenedor IAM usado para login y delegación. Identity de
