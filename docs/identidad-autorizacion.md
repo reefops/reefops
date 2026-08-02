@@ -152,8 +152,9 @@ Prometheus y exporta trazas por OTLP dentro del clúster; la indisponibilidad de
 backend de telemetría no altera la decisión de autorización ni la auditoría.
 
 El Authorizer es stateless salvo por sus dependencias externas, admite varias
-réplicas y no usa afinidad de sesión. Cada réplica limita su pool PostgreSQL y
-peticiones concurrentes; Kubernetes puede escalarla horizontalmente entre una
+réplicas y no usa afinidad de sesión. Cada réplica limita su pool PostgreSQL a
+ocho conexiones, los streams gRPC concurrentes a 256 y cada mensaje a 64 KiB;
+Kubernetes puede escalarla horizontalmente entre una
 y cinco réplicas usando CPU, con recursos, PDB y distribución entre nodos. El
 presupuesto total de conexiones debe revisarse antes de elevar esos límites.
 
