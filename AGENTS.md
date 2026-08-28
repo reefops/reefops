@@ -2,6 +2,8 @@
 
 ## Sources of truth
 
+- Use `/Users/ricardo/Documents/normativa` for shared naming, security and physical-infrastructure conventions when applicable.
+- Use `/Users/ricardo/Documents/hardware` for reusable physical-device definitions; keep product-specific runtime behavior and code contracts in ReefOps.
 - Read `docs/requisitos-funcionales.md`, `docs/arquitectura.md` and
   `docs/alineacion-requisitos-arquitectura.md` for behavior and boundaries.
 - Read `docs/desarrollo-asistido.md` for Codex aids and
